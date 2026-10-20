@@ -22,6 +22,7 @@ resource "azurerm_storage_account" "tfstate" {
   # Aucune clé d'accès ni SAS : seules les identités Entra autorisées lisent le state.
   shared_access_key_enabled       = false
   default_to_oauth_authentication = true
+  local_user_enabled              = false # utilisateurs locaux SFTP : autre accès hors Entra
   min_tls_version                 = "TLS1_2"
   allow_nested_items_to_be_public = false
 

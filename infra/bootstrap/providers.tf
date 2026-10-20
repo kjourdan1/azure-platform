@@ -16,6 +16,7 @@ provider "azurerm" {
 }
 
 # Jeton lu depuis GITHUB_TOKEN (export GITHUB_TOKEN=$(gh auth token)) : jamais stocké.
+# manage_github = false : pas d'owner, donc aucun appel API à l'initialisation du provider.
 provider "github" {
-  owner = var.github_owner
+  owner = var.manage_github ? var.github_owner : null
 }
