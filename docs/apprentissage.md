@@ -15,6 +15,8 @@ commande lue, plan expliqué), pas seulement lu.
 - [x] Deux identités : c'est le `sub` du jeton (`pull_request` vs `environment:prd`) qui empêche une PR d'obtenir l'identité `apply`
 - [ ] `plan` exécute du code (`data "external"`, providers) → identité `plan` en lecture seule
 - [ ] Storage Account sans clé : `shared_access_key_enabled = false` + `storage_use_azuread = true`
+- [x] Management plane (`actions`) vs data plane (`dataActions`) : Owner n'a aucune dataAction, mais `listKeys` lui ouvrait les données tant que les clés existaient → désactiver les clés ferme ce contournement
+- [x] Global Admin est un rôle Entra, pas Azure RBAC : aucun droit sur les ressources
 - [ ] Conteneur via `storage_account_id` = management plane, role assignment = data plane
 - [ ] `prevent_destroy` sur le compte de state
 - [ ] azurerm 5.x : `resource_providers_to_register` explicite
