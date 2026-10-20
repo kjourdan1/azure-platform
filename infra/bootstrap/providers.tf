@@ -14,3 +14,8 @@ provider "azurerm" {
     "Microsoft.Consumption",
   ]
 }
+
+# Jeton lu depuis GITHUB_TOKEN (export GITHUB_TOKEN=$(gh auth token)) : jamais stocké.
+provider "github" {
+  owner = var.github_owner
+}

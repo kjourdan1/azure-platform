@@ -25,6 +25,24 @@ variable "owner" {
   type        = string
 }
 
+variable "github_owner" {
+  description = "Propriétaire GitHub du dépôt, et approbateur de l'environnement protégé."
+  type        = string
+  default     = "kjourdan1"
+}
+
+variable "github_repository" {
+  description = "Dépôt autorisé à obtenir un jeton Azure via OIDC."
+  type        = string
+  default     = "azure-platform"
+}
+
+variable "github_environment" {
+  description = "Environnement GitHub protégé dont les jobs obtiennent l'identité apply."
+  type        = string
+  default     = "prd"
+}
+
 variable "cost_center" {
   description = "Centre de coût, porté par le tag cost-center (imposé par policy en couche 1)."
   type        = string
