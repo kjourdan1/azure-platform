@@ -18,9 +18,10 @@ commande lue, plan expliqué), pas seulement lu.
 - [x] Management plane (`actions`) vs data plane (`dataActions`) : Owner n'a aucune dataAction, mais `listKeys` lui ouvrait les données tant que les clés existaient → désactiver les clés ferme ce contournement
 - [x] Global Admin est un rôle Entra, pas Azure RBAC : aucun droit sur les ressources
 - [ ] Conteneur via `storage_account_id` = management plane, role assignment = data plane
-- [ ] `prevent_destroy` sur le compte de state
+- [x] `prevent_destroy` sur le compte de state : un renommage fait échouer le plan au lieu de détruire le compte (ne protège pas d'une suppression hors Terraform → resource lock)
 - [ ] azurerm 5.x : `resource_providers_to_register` explicite
-- [ ] Migration local → distant (`terraform init -migrate-state`) lue et exécutée
+- [x] Migration local → distant (`terraform init -migrate-state`) exécutée, vérifiée par un plan « No changes »
+- [x] MFA obligatoire sur ARM : c'est le claim `amr` du jeton qui compte, pas les méthodes enregistrées sur le compte
 
 ### Le contexte large
 - [x] Comparaison avec l'existant en entreprise : SPN + certificat PFX vs OIDC, state créé en CLI vs bootstrap versionné
