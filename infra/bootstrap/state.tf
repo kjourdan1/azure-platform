@@ -7,6 +7,11 @@ resource "azurerm_resource_group" "tfstate" {
 }
 
 resource "azurerm_storage_account" "tfstate" {
+  #checkov:skip=CKV_AZURE_59:Runners GitHub hébergés à IP dynamiques ; accès Entra only, cible runner self-hosted + Deny
+  #checkov:skip=CKV2_AZURE_33:Private endpoint inatteignable depuis les runners hébergés ; même cible que CKV_AZURE_59
+  #checkov:skip=CKV_AZURE_206:LRS par coût ; versioning + soft delete couvrent corruption et suppression, pas la perte de région
+  #checkov:skip=CKV2_AZURE_1:Clés gérées par Microsoft ; une CMK exigerait un Key Vault existant avant le state (dépendance circulaire)
+  #checkov:skip=CKV_AZURE_33:Service Queue non utilisé
   name                     = local.names.storage_account
   resource_group_name      = azurerm_resource_group.tfstate.name
   location                 = azurerm_resource_group.tfstate.location
@@ -48,6 +53,7 @@ resource "azurerm_storage_account" "tfstate" {
 # Avec storage_account_id, le conteneur est créé via ARM (management plane) :
 # pas besoin de droit data plane pour ce premier apply.
 resource "azurerm_storage_container" "tfstate" {
+  #checkov:skip=CKV2_AZURE_21:Logs de lecture blob déployés par policy DeployIfNotExists en couche 1 (Log Analytics)
   name                  = "tfstate"
   storage_account_id    = azurerm_storage_account.tfstate.id
   container_access_type = "private"

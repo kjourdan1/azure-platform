@@ -25,6 +25,12 @@ variable "owner" {
   type        = string
 }
 
+variable "manage_github" {
+  description = "Gère l'environnement et les variables GitHub. false si l'API GitHub n'est pas joignable avec des droits admin."
+  type        = bool
+  default     = true
+}
+
 variable "github_owner" {
   description = "Propriétaire GitHub du dépôt, et approbateur de l'environnement protégé."
   type        = string
