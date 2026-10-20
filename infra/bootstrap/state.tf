@@ -22,7 +22,7 @@ resource "azurerm_storage_account" "tfstate" {
 
   # Endpoint public conservé tant que les runners sont hébergés par GitHub (IP dynamiques).
   # Cible : runner self-hosted à IP fixe + network_rules en Deny. Voir docs/adr.
-  public_network_access_enabled = true
+  public_network_access = "Enabled"
 
   blob_properties {
     # Chaque écriture du state crée une version : on peut revenir à un state antérieur.
