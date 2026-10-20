@@ -1,0 +1,18 @@
+# Terraform — le state et les plans ne quittent jamais le backend distant
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Variables locales : peuvent contenir des IDs de tenant/subscription
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+
+# Le lock file des providers EST versionné (.terraform.lock.hcl) : pas d'entrée ici.
