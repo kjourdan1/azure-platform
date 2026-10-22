@@ -125,6 +125,18 @@ jobs:
           terraform_version: ${{ env.TF_VERSION }}
           terraform_wrapper: false
 
+      # Sans ces variables, azurerm retombe sur l'auth Azure CLI et l'erreur devient trompeuse.
+      - name: variables requises
+        run: |
+          missing=0
+          for v in ARM_CLIENT_ID ARM_TENANT_ID ARM_SUBSCRIPTION_ID TF_VAR_operator_object_id; do
+            if [ -z "${!v}" ]; then
+              echo "::error::$v is empty: set the matching GitHub Actions variable"
+              missing=1
+            fi
+          done
+          exit "$missing"
+
       - name: terraform init
         run: terraform init
 
