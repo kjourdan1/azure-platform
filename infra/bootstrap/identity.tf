@@ -1,7 +1,9 @@
 locals {
   github_oidc_issuer   = "https://token.actions.githubusercontent.com"
   github_oidc_audience = ["api://AzureADTokenExchange"]
-  github_subject_base  = "repo:${var.github_owner}/${var.github_repository}"
+  # GitHub inclut les IDs immuables du propriétaire et du dépôt dans le sub :
+  # un dépôt recréé sous le même nom après un renommage n'obtient pas le même sujet.
+  github_subject_base = "repo:${var.github_owner}@${var.github_owner_id}/${var.github_repository}@${var.github_repository_id}"
 
   # Une identité = un sujet exact. Aucun joker : seul un job dans ce contexte précis
   # obtient un jeton Azure pour cette identité.

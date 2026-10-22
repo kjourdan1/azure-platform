@@ -48,6 +48,18 @@ variable "github_owner" {
   default     = "kjourdan1"
 }
 
+variable "github_owner_id" {
+  description = "ID numérique immuable du propriétaire GitHub, présent dans le sub OIDC."
+  type        = number
+  default     = 97712877
+}
+
+variable "github_repository_id" {
+  description = "ID numérique immuable du dépôt GitHub, présent dans le sub OIDC."
+  type        = number
+  default     = 1325008901
+}
+
 variable "github_repository" {
   description = "Dépôt autorisé à obtenir un jeton Azure via OIDC."
   type        = string
