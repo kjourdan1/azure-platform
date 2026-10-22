@@ -25,6 +25,12 @@ variable "owner" {
   type        = string
 }
 
+variable "platform_subscription_ids" {
+  description = "Subscriptions où l'identité apply déploie des ressources. Jamais celle du state."
+  type        = list(string)
+  default     = []
+}
+
 variable "manage_github" {
   description = "Gère l'environnement et les variables GitHub. false si l'API GitHub n'est pas joignable avec des droits admin."
   type        = bool

@@ -73,10 +73,13 @@ resource "azurerm_role_assignment" "ci_root" {
   principal_type       = "ServicePrincipal"
 }
 
-# apply déploie aussi des ressources (Log Analytics, hub réseau) dans la subscription.
-# Contributor limité à la subscription, pas à la racine.
+# apply déploie aussi des ressources (Log Analytics, hub réseau) : Contributor
+# uniquement sur les subscriptions plateforme listées, jamais sur celle du state
+# (LAB, qui héberge aussi des ressources hors plateforme).
 resource "azurerm_role_assignment" "apply_subscription" {
-  scope                = data.azurerm_subscription.current.id
+  for_each = toset(var.platform_subscription_ids)
+
+  scope                = "/subscriptions/${each.value}"
   role_definition_name = "Contributor"
   principal_id         = azurerm_user_assigned_identity.ci["apply"].principal_id
   principal_type       = "ServicePrincipal"
