@@ -25,6 +25,11 @@ variable "owner" {
   type        = string
 }
 
+variable "operator_object_id" {
+  description = "Object ID Entra de l'opérateur humain autorisé à lire/écrire le state du bootstrap."
+  type        = string
+}
+
 variable "platform_subscription_ids" {
   description = "Subscriptions où l'identité apply déploie des ressources. Jamais celle du state."
   type        = list(string)

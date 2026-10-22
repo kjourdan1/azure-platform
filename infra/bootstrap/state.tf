@@ -58,12 +58,17 @@ resource "azurerm_storage_container" "tfstate" {
   name                  = "tfstate"
   storage_account_id    = azurerm_storage_account.tfstate.id
   container_access_type = "private"
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
-# L'opérateur qui lance le bootstrap doit pouvoir lire/écrire le state
-# pour la migration (terraform init -migrate-state) : droit data plane explicite.
+# L'opérateur humain qui lance le bootstrap en local doit pouvoir lire/écrire le state :
+# droit data plane explicite. Principal passé en variable et non lu depuis le client
+# courant, sinon un plan en CI voudrait réattribuer ce droit à l'identité plan.
 resource "azurerm_role_assignment" "operator_state" {
   scope                = azurerm_storage_container.tfstate.id
   role_definition_name = "Storage Blob Data Contributor"
-  principal_id         = data.azurerm_client_config.current.object_id
+  principal_id         = var.operator_object_id
 }
