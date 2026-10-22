@@ -75,11 +75,18 @@ jobs:
           output_format: cli,sarif
           output_file_path: console,checkov.sarif
 
-      - name: upload SARIF
+      # Code Scanning ignore les suppressions SARIF : sans ce filtre, chaque #checkov:skip
+      # justifié dans le code deviendrait une alerte.
+      - name: retirer les exceptions justifiées du SARIF
         if: always() && hashFiles('checkov.sarif') != ''
+        working-directory: ${{ github.workspace }}
+        run: jq '(.runs[].results) |= map(select((.suppressions // []) | length == 0))' checkov.sarif > checkov.filtered.sarif
+
+      - name: upload SARIF
+        if: always() && hashFiles('checkov.filtered.sarif') != ''
         uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
-          sarif_file: checkov.sarif
+          sarif_file: checkov.filtered.sarif
           category: checkov-${{ matrix.root }}
 
   # Jeton OIDC → identité plan (Reader). Les PR de forks n'obtiennent pas de jeton : job ignoré.
