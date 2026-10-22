@@ -1,0 +1,210 @@
+name: terraform-pr
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "infra/**"
+      - ".tflint.hcl"
+      - ".github/workflows/terraform-pr.yml"
+
+# Moindre privilège par défaut : chaque job élargit uniquement ce dont il a besoin.
+permissions:
+  contents: read
+
+concurrency:
+  group: terraform-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  TF_VERSION: "1.16.6"
+  TFLINT_VERSION: "v0.65.0"
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "false"
+
+jobs:
+  # Aucun accès Azure : tourne aussi sur les PR venant de forks.
+  static:
+    name: static (${{ matrix.root }})
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      security-events: write # upload SARIF vers Code Scanning
+    strategy:
+      fail-fast: false
+      matrix:
+        root: [infra/bootstrap]
+    defaults:
+      run:
+        working-directory: ${{ matrix.root }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - name: terraform fmt
+        run: terraform fmt -check -recursive -diff
+
+      - name: terraform validate
+        run: |
+          terraform init -backend=false
+          terraform validate
+
+      - uses: terraform-linters/setup-tflint@6ffdbaa3be476b3431f7275c26966ef32ff60337 # v6.3.2
+        with:
+          tflint_version: ${{ env.TFLINT_VERSION }}
+
+      - name: tflint
+        env:
+          GITHUB_TOKEN: ${{ github.token }} # évite la limite d'API au téléchargement du plugin
+        run: |
+          tflint --init --config "$GITHUB_WORKSPACE/.tflint.hcl"
+          tflint --config "$GITHUB_WORKSPACE/.tflint.hcl" --format compact
+
+      - name: checkov (code)
+        uses: bridgecrewio/checkov-action@c3e106d5f8f4253a6de5110efb41a080f83db294 # v12.3135.0
+        with:
+          directory: ${{ matrix.root }}
+          framework: terraform
+          skip_path: .terraform
+          output_format: cli,sarif
+          output_file_path: console,checkov.sarif
+
+      # Code Scanning ignore les suppressions SARIF : sans ce filtre, chaque #checkov:skip
+      # justifié dans le code deviendrait une alerte.
+      - name: retirer les exceptions justifiées du SARIF
+        if: always() && hashFiles('checkov.sarif') != ''
+        working-directory: ${{ github.workspace }}
+        run: jq '(.runs[].results) |= map(select((.suppressions // []) | length == 0))' checkov.sarif > checkov.filtered.sarif
+
+      - name: upload SARIF
+        if: always() && hashFiles('checkov.filtered.sarif') != ''
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          sarif_file: checkov.filtered.sarif
+          category: checkov-${{ matrix.root }}
+
+  # Jeton OIDC → identité plan (Reader). Les PR de forks n'obtiennent pas de jeton : job ignoré.
+  plan:
+    name: plan (${{ matrix.root }})
+    needs: static
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write # demande du JWT GitHub échangé contre un jeton Azure
+      pull-requests: write # commentaire du plan
+    strategy:
+      fail-fast: false
+      matrix:
+        root: [infra/bootstrap]
+    defaults:
+      run:
+        working-directory: ${{ matrix.root }}
+    env:
+      ARM_USE_OIDC: "true"
+      ARM_USE_AZUREAD: "true" # backend azurerm : auth Entra, pas de clé d'accès
+      ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID_PLAN }}
+      ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_owner: ${{ github.repository_owner }}
+      TF_VAR_operator_object_id: ${{ vars.OPERATOR_OBJECT_ID }}
+      TF_VAR_manage_github: "false" # le GITHUB_TOKEN de la CI n'a pas les droits admin du dépôt
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      # Sans ces variables, azurerm retombe sur l'auth Azure CLI et l'erreur devient trompeuse.
+      - name: variables requises
+        run: |
+          missing=0
+          for v in ARM_CLIENT_ID ARM_TENANT_ID ARM_SUBSCRIPTION_ID TF_VAR_operator_object_id; do
+            if [ -z "${!v}" ]; then
+              echo "::error::$v is empty: set the matching GitHub Actions variable"
+              missing=1
+            fi
+          done
+          exit "$missing"
+
+      - name: terraform init
+        run: terraform init
+
+      - name: terraform plan
+        id: plan
+        run: |
+          set +e
+          terraform plan -lock-timeout=5m -detailed-exitcode -out=tfplan
+          code=$?
+          set -e
+          # 0 = aucun changement, 2 = changements, 1 = erreur
+          [ "$code" -eq 1 ] && exit 1
+          terraform show -no-color tfplan > plan.txt
+          terraform show -json tfplan > plan.json
+          destroys=$(jq '[.resource_changes[]? | select(.change.actions | index("delete"))] | length' plan.json)
+          echo "exitcode=$code" >> "$GITHUB_OUTPUT"
+          echo "destroys=$destroys" >> "$GITHUB_OUTPUT"
+
+      # Le plan voit l'intérieur des modules et les valeurs calculées, que l'analyse statique ignore.
+      - name: checkov (plan)
+        uses: bridgecrewio/checkov-action@c3e106d5f8f4253a6de5110efb41a080f83db294 # v12.3135.0
+        with:
+          file: ${{ matrix.root }}/plan.json
+          framework: terraform_plan
+          repo_root_for_plan_enrichment: ${{ matrix.root }} # applique les #checkov:skip du code
+          output_format: cli
+
+      - name: commentaire du plan
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          ROOT: ${{ matrix.root }}
+          EXITCODE: ${{ steps.plan.outputs.exitcode }}
+          DESTROYS: ${{ steps.plan.outputs.destroys }}
+        with:
+          script: |
+            const fs = require('fs');
+            const { ROOT, EXITCODE, DESTROYS } = process.env;
+            const marker = `<!-- terraform-plan:${ROOT} -->`;
+            const max = 60000;
+            let plan = fs.readFileSync(`${ROOT}/plan.txt`, 'utf8');
+            if (plan.length > max) plan = plan.slice(0, max) + '\n… (truncated, see job logs)';
+
+            const destroys = Number(DESTROYS);
+            const status = EXITCODE === '0' ? '✅ No changes'
+              : destroys > 0 ? `⚠️ **${destroys} resource(s) to destroy** — review before merge`
+              : '🟡 Changes, no destroys';
+            const run = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const body = [
+              marker,
+              `### terraform plan — \`${ROOT}\``,
+              status,
+              '',
+              '<details><summary>Plan</summary>',
+              '',
+              '```diff',
+              plan,
+              '```',
+              '</details>',
+              '',
+              `Commit \`${context.payload.pull_request.head.sha.slice(0, 7)}\` · [run](${run})`,
+            ].join('\n');
+
+            const { owner, repo } = context.repo;
+            const issue_number = context.payload.pull_request.number;
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number });
+            const existing = comments.find(c => c.user.type === 'Bot' && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }
