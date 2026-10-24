@@ -33,7 +33,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        root: [infra/bootstrap]
+        root: [infra/bootstrap, infra/landing-zone]
     defaults:
       run:
         working-directory: ${{ matrix.root }}
@@ -102,7 +102,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        root: [infra/bootstrap]
+        root: [infra/bootstrap, infra/landing-zone]
     defaults:
       run:
         working-directory: ${{ matrix.root }}
@@ -148,14 +148,23 @@ jobs:
         id: plan
         run: |
           set +e
-          terraform plan -lock-timeout=5m -detailed-exitcode -out=tfplan
+          # Les lignes de refresh ([id=...]) contiennent des IDs parfois encodés (base64)
+          # que le masquage des secrets ne reconnaît pas : elles ne sont pas publiées.
+          terraform plan -lock-timeout=5m -detailed-exitcode -out=tfplan > plan.log 2>&1
           code=$?
+          sed -E 's/ \[id=[^]]*\]//' plan.log
           set -e
           # 0 = aucun changement, 2 = changements, 1 = erreur
           [ "$code" -eq 1 ] && exit 1
           terraform show -no-color tfplan > plan.txt
           terraform show -json tfplan > plan.json
           destroys=$(jq '[.resource_changes[]? | select(.change.actions | index("delete"))] | length' plan.json)
+          # Affectations de policy évaluées sans être appliquées : affichées pour la revue.
+          jq -r '[.resource_changes[]?
+                  | select(.type == "azapi_resource")
+                  | select((.change.after.type // "") | startswith("Microsoft.Authorization/policyAssignments"))
+                  | select(.change.after.body.properties.enforcementMode? == "DoNotEnforce")
+                  | .change.after.name] | unique | join(", ")' plan.json > dne.txt
           echo "exitcode=$code" >> "$GITHUB_OUTPUT"
           echo "destroys=$destroys" >> "$GITHUB_OUTPUT"
 
@@ -184,6 +193,7 @@ jobs:
             // Tous les GUID (tenant, subscription, principals) sont retirés avant publication.
             let plan = fs.readFileSync(`${ROOT}/plan.txt`, 'utf8')
               .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, '<redacted>');
+            const summary = (plan.match(/^Plan: .*$/m) || [''])[0]; // avant troncature : il est en fin de sortie
             if (plan.length > max) plan = plan.slice(0, max) + '\n… (truncated, see job logs)';
 
             const destroys = Number(DESTROYS);
@@ -191,10 +201,13 @@ jobs:
               : destroys > 0 ? `⚠️ **${destroys} resource(s) to destroy** — review before merge`
               : '🟡 Changes, no destroys';
             const run = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const dne = fs.readFileSync(`${ROOT}/dne.txt`, 'utf8').trim();
             const body = [
               marker,
               `### terraform plan — \`${ROOT}\``,
               status,
+              summary ? `\`${summary}\`` : null,
+              dne ? `Policy assignments in \`DoNotEnforce\`: ${dne.split(', ').map(n => `\`${n}\``).join(', ')}` : null,
               '',
               '<details><summary>Plan</summary>',
               '',
@@ -204,7 +217,7 @@ jobs:
               '</details>',
               '',
               `Commit \`${context.payload.pull_request.head.sha.slice(0, 7)}\` · [run](${run})`,
-            ].join('\n');
+            ].filter(l => l !== null).join('\n');
 
             const { owner, repo } = context.repo;
             const issue_number = context.payload.pull_request.number;

@@ -76,8 +76,10 @@ jobs:
         id: plan
         run: |
           set +e
-          terraform plan -lock-timeout=10m -detailed-exitcode -out=tfplan
+          # Lignes [id=...] non publiées : IDs parfois encodés, non reconnus par le masquage.
+          terraform plan -lock-timeout=10m -detailed-exitcode -out=tfplan > plan.log 2>&1
           code=$?
+          sed -E 's/ \[id=[^]]*\]//' plan.log
           set -e
           [ "$code" -eq 1 ] && exit 1
           echo "exitcode=$code" >> "$GITHUB_OUTPUT"
@@ -91,4 +93,6 @@ jobs:
 
       - name: terraform apply
         if: steps.plan.outputs.exitcode == '2'
-        run: terraform apply -lock-timeout=10m tfplan
+        run: |
+          set -o pipefail
+          terraform apply -lock-timeout=10m tfplan 2>&1 | sed -E 's/ \[id=[^]]*\]//'
