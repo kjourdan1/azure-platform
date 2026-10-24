@@ -65,12 +65,8 @@ module "alz" {
 
   policy_assignments_to_modify = local.policy_assignments_to_modify
 
-  subscription_placement = {
-    for key, sub in local.subscriptions : key => {
-      subscription_id       = sub.id
-      management_group_name = sub.management_group
-    }
-  }
+  # Le placement se fait désormais depuis subscriptions.tf, au moment de la création
+  # par alias (le module de vending gère lui-même l'association au management group).
 
   policy_default_values = {
     email_security_contact = jsonencode({ value = var.security_contact_email })

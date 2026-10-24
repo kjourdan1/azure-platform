@@ -10,17 +10,24 @@ variable "security_contact_email" {
   default     = "security@azure-platform.invalid"
 }
 
-# IDs fournis par des secrets GitHub (TF_VAR_subscription_ids) : jamais dans le code.
-variable "subscription_ids" {
-  description = "Subscriptions de la plateforme : platform (management, réseau hub) et lz_aks (workload AKS)."
-  type = object({
-    platform = string
-    lz_aks   = string
-  })
+# Scope MCA (invoice section) où les subscriptions sont vendues : fourni par un secret
+# GitHub, jamais dans le code. sensitive pour que Terraform le masque dans le plan.
+variable "subscription_billing_scope" {
+  description = "Billing scope MCA (invoice section) pour la création des subscriptions par alias."
+  type        = string
+  sensitive   = true
+}
+
+# Destinataire des alertes de budget : un secret, pas un rôle, car l'API Consumption
+# Budgets exige un e-mail explicite à l'échelle management group.
+variable "budget_alert_email" {
+  description = "E-mail de notification des alertes de budget."
+  type        = string
+  sensitive   = true
 }
 
 variable "budget_amount" {
-  description = "Budget mensuel par subscription, en devise de facturation."
+  description = "Budget mensuel total du lab (les deux subscriptions comprises), en devise de facturation."
   type        = number
   default     = 50
 }

@@ -1,26 +1,29 @@
 locals {
-  # azpl-lz-aks va dans online et non corp : l'ingress AKS est public, que corp interdit.
   subscriptions = {
-    platform = { id = var.subscription_ids.platform, management_group = "platform" }
-    lz_aks   = { id = var.subscription_ids.lz_aks, management_group = "online" }
+    platform = {
+      alias_name = "azpl-platform"
+      # Management group direct : héberge le futur réseau hub et Log Analytics.
+      management_group = "platform"
+    }
+    lz_aks = {
+      alias_name = "azpl-lz-aks"
+      # online et non corp : l'ingress AKS est public, que corp interdit.
+      management_group = "online"
+    }
   }
 
-  # Resource providers enregistrés à la création de la subscription (rôle du "vending") :
-  # les couches suivantes n'ont pas à porter ce droit.
-  resource_providers = [
-    "Microsoft.Consumption",
-    "Microsoft.ContainerRegistry",
-    "Microsoft.ContainerService",
-    "Microsoft.Insights",
-    "Microsoft.KeyVault",
-    "Microsoft.ManagedIdentity",
-    "Microsoft.Network",
-    "Microsoft.OperationalInsights",
-  ]
-
-  provider_registrations = {
-    for pair in setproduct(keys(local.subscriptions), local.resource_providers) :
-    "${pair[0]}-${pair[1]}" => { subscription = pair[0], namespace = pair[1] }
+  # Resource providers nécessaires aux couches suivantes (réseau, AKS, ACR, Key Vault,
+  # observabilité), enregistrés au moment de la vente : les couches suivantes n'ont pas
+  # à porter ce droit.
+  resource_providers = {
+    "Microsoft.Consumption"         = []
+    "Microsoft.ContainerRegistry"   = []
+    "Microsoft.ContainerService"    = []
+    "Microsoft.Insights"            = []
+    "Microsoft.KeyVault"            = []
+    "Microsoft.ManagedIdentity"     = []
+    "Microsoft.Network"             = []
+    "Microsoft.OperationalInsights" = []
   }
 
   # Alertes à 10, 25 et 50 € (20/50/100 % de 50 €), plus une alerte sur la prévision.
@@ -32,21 +35,44 @@ locals {
   }
 }
 
-resource "azapi_resource_action" "provider_registration" {
-  for_each = local.provider_registrations
-
-  type        = "Microsoft.Resources/subscriptions@2022-12-01"
-  resource_id = "/subscriptions/${local.subscriptions[each.value.subscription].id}"
-  action      = "providers/${each.value.namespace}/register"
-  method      = "POST"
-}
-
-resource "azapi_resource" "budget" {
+# Crée azpl-platform et azpl-lz-aks par alias de subscription (le créateur, ici
+# l'identité apply, en devient Owner automatiquement — aucune attribution de rôle
+# supplémentaire n'est nécessaire), les place dans leur management group et enregistre
+# les resource providers dont les couches suivantes auront besoin.
+module "subscriptions" {
+  source   = "Azure/avm-ptn-alz-sub-vending/azure"
+  version  = "0.3.4"
   for_each = local.subscriptions
 
+  enable_telemetry = false
+
+  subscription_alias_enabled = true
+  subscription_alias_name    = each.value.alias_name
+  subscription_display_name  = each.value.alias_name
+  subscription_billing_scope = var.subscription_billing_scope
+  subscription_workload      = "Production"
+
+  subscription_management_group_association_enabled = true
+  subscription_management_group_id                  = each.value.management_group
+
+  subscription_register_resource_providers_enabled      = true
+  subscription_register_resource_providers_and_features = local.resource_providers
+
+  subscription_tags = {
+    owner         = "kjourdan1"
+    "cost-center" = "azure-platform"
+    project       = "azpl"
+    "managed-by"  = "terraform"
+  }
+}
+
+# Budget unique sur le management group "alz" : couvre platform et landingzones, donc
+# les deux subscriptions ci-dessus, sans jamais inclure LAB qui reste à la racine du
+# tenant (state, portfolio hors plateforme).
+resource "azapi_resource" "budget" {
   type      = "Microsoft.Consumption/budgets@2023-11-01"
-  name      = "budget-azpl-${replace(each.key, "_", "-")}-prd"
-  parent_id = "/subscriptions/${each.value.id}"
+  name      = "budget-azpl-lab-prd"
+  parent_id = "/providers/Microsoft.Management/managementGroups/alz"
 
   body = {
     properties = {
@@ -54,19 +80,19 @@ resource "azapi_resource" "budget" {
       amount     = var.budget_amount
       timeGrain  = "Monthly"
       timePeriod = { startDate = var.budget_start_date }
-      # Envoyé aux Owners de la subscription : aucune adresse e-mail dans le code.
       notifications = {
         for name, n in local.budget_notifications : name => {
           enabled       = true
           operator      = "GreaterThanOrEqualTo"
           threshold     = n.threshold
           thresholdType = n.type
-          contactRoles  = ["Owner"]
-          contactEmails = []
+          # Un rôle seul (Owner) ne suffit pas à l'échelle management group : l'API
+          # Consumption Budgets y exige un e-mail explicite.
+          contactEmails = [var.budget_alert_email]
         }
       }
     }
   }
 
-  depends_on = [azapi_resource_action.provider_registration]
+  depends_on = [module.alz]
 }
