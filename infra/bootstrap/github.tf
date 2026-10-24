@@ -31,28 +31,27 @@ resource "github_repository_environment_deployment_policy" "prd_main" {
   branch_pattern = "main"
 }
 
-# Valeurs non secrètes mais hors du code : variables Actions, pas secrets.
-resource "github_actions_variable" "repo" {
+# Identifiants non secrets mais stockés en secrets Actions : GitHub les masque dans
+# toutes les lignes de log d'un dépôt public.
+resource "github_actions_secret" "repo" {
   for_each = var.manage_github ? {
-    AZURE_TENANT_ID       = data.azurerm_client_config.current.tenant_id
+    AZURE_TENANT_ID       = data.azurerm_subscription.current.tenant_id
     AZURE_SUBSCRIPTION_ID = data.azurerm_subscription.current.subscription_id
     AZURE_CLIENT_ID_PLAN  = azurerm_user_assigned_identity.ci["plan"].client_id
-    TFSTATE_RG            = azurerm_resource_group.tfstate.name
-    TFSTATE_ACCOUNT       = azurerm_storage_account.tfstate.name
-    TFSTATE_CONTAINER     = azurerm_storage_container.tfstate.name
+    OPERATOR_OBJECT_ID    = var.operator_object_id
   } : {}
 
-  repository    = var.github_repository
-  variable_name = each.key
-  value         = each.value
+  repository  = var.github_repository
+  secret_name = each.key
+  value       = each.value
 }
 
 # Le client ID d'apply n'est exposé qu'aux jobs de l'environnement prd.
-resource "github_actions_environment_variable" "apply_client_id" {
+resource "github_actions_environment_secret" "apply_client_id" {
   count = var.manage_github ? 1 : 0
 
-  repository    = var.github_repository
-  environment   = github_repository_environment.prd[0].environment
-  variable_name = "AZURE_CLIENT_ID_APPLY"
-  value         = azurerm_user_assigned_identity.ci["apply"].client_id
+  repository  = var.github_repository
+  environment = github_repository_environment.prd[0].environment
+  secret_name = "AZURE_CLIENT_ID_APPLY"
+  value       = azurerm_user_assigned_identity.ci["apply"].client_id
 }

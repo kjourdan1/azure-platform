@@ -36,7 +36,7 @@ locals {
 
 # Tenant Root Group : son nom est l'ID du tenant.
 data "azurerm_management_group" "root" {
-  name = data.azurerm_client_config.current.tenant_id
+  name = data.azurerm_subscription.current.tenant_id
 }
 
 data "azurerm_subscription" "current" {}
