@@ -19,7 +19,8 @@ approbation dans l'environnement `prd`.
   ALZ ne s'y applique.
 
 ## Limites connues
-- Aucune subscription placée pour l'instant : les policies n'ont encore rien à évaluer.
+- Subscriptions créées dans le portail puis gérées ici (placement, budgets, resource providers) ;
+  la création par Terraform (subscription vending, compte MCA) viendra pour les suivantes.
 - Les affectations en `DoNotEnforce` seront réactivées quand la couche management (Log
   Analytics, DCR) existera.
 
