@@ -47,6 +47,7 @@ jobs:
       ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID_APPLY }} # secret de l'environnement prd
       ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
       ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_subscription_ids: '{"platform":"${{ secrets.AZURE_SUBSCRIPTION_ID_PLATFORM }}","lz_aks":"${{ secrets.AZURE_SUBSCRIPTION_ID_LZ_AKS }}"}'
     steps:
       # GitHub crée un environnement inexistant à la volée, sans aucune protection. Si
       # l'approbation n'est pas configurée, le job démarre sans attendre : on l'arrête ici.
@@ -81,6 +82,11 @@ jobs:
               missing=1
             fi
           done
+          # Les IDs de subscription arrivent en JSON : aucun ne doit être vide.
+          if ! jq -e '[.[] | select(. == "")] | length == 0' <<< "$TF_VAR_subscription_ids" > /dev/null; then
+            echo "::error::AZURE_SUBSCRIPTION_ID_PLATFORM / _LZ_AKS secrets must be set"
+            missing=1
+          fi
           exit "$missing"
 
       - name: terraform init
