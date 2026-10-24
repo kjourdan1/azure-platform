@@ -106,14 +106,16 @@ jobs:
     defaults:
       run:
         working-directory: ${{ matrix.root }}
+    # Identifiants non secrets, mais stockés en secrets GitHub pour être masqués dans
+    # toutes les lignes de log, sortie du plan comprise (dépôt public).
     env:
       ARM_USE_OIDC: "true"
       ARM_USE_AZUREAD: "true" # backend azurerm : auth Entra, pas de clé d'accès
-      ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID_PLAN }}
-      ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
-      ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID_PLAN }}
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       TF_VAR_owner: ${{ github.repository_owner }}
-      TF_VAR_operator_object_id: ${{ vars.OPERATOR_OBJECT_ID }}
+      TF_VAR_operator_object_id: ${{ secrets.OPERATOR_OBJECT_ID }}
       TF_VAR_manage_github: "false" # le GITHUB_TOKEN de la CI n'a pas les droits admin du dépôt
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -131,7 +133,7 @@ jobs:
           missing=0
           for v in ARM_CLIENT_ID ARM_TENANT_ID ARM_SUBSCRIPTION_ID TF_VAR_operator_object_id; do
             if [ -z "${!v}" ]; then
-              echo "::error::$v is empty: set the matching GitHub Actions variable"
+              echo "::error::$v is empty: set the matching GitHub Actions secret"
               missing=1
             fi
           done
@@ -140,6 +142,8 @@ jobs:
       - name: terraform init
         run: terraform init
 
+      # tfplan et plan.json contiennent toutes les valeurs en clair, secrets compris :
+      # ils restent sur le runner, jamais publiés en artefact.
       - name: terraform plan
         id: plan
         run: |
@@ -176,7 +180,10 @@ jobs:
             const { ROOT, EXITCODE, DESTROYS } = process.env;
             const marker = `<!-- terraform-plan:${ROOT} -->`;
             const max = 60000;
-            let plan = fs.readFileSync(`${ROOT}/plan.txt`, 'utf8');
+            // Le commentaire passe par l'API : le masquage des logs ne s'applique pas.
+            // Tous les GUID (tenant, subscription, principals) sont retirés avant publication.
+            let plan = fs.readFileSync(`${ROOT}/plan.txt`, 'utf8')
+              .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, '<redacted>');
             if (plan.length > max) plan = plan.slice(0, max) + '\n… (truncated, see job logs)';
 
             const destroys = Number(DESTROYS);
