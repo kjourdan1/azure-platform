@@ -1,0 +1,94 @@
+name: terraform-apply
+
+# Le bootstrap (infra/bootstrap) est volontairement exclu : il crée les identités de la CI
+# et leurs droits. Il s'applique en local, après revue du plan sur PR, jamais par la CI.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "infra/landing-zone/**"
+      - ".github/workflows/terraform-apply.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  TF_VERSION: "1.16.6"
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "false"
+
+jobs:
+  apply:
+    name: apply (${{ matrix.root }})
+    runs-on: ubuntu-24.04
+    # L'environnement porte la protection : approbation obligatoire, branche main uniquement.
+    # C'est aussi lui qui donne au jeton OIDC le sub ...:environment:prd attendu par l'identité apply.
+    environment: prd
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      fail-fast: false
+      max-parallel: 1 # les couches s'appliquent l'une après l'autre
+      matrix:
+        root: [infra/landing-zone]
+    # Un apply ne s'annule jamais en cours : les runs s'enchaînent par couche.
+    concurrency:
+      group: terraform-apply-${{ matrix.root }}
+      cancel-in-progress: false
+    defaults:
+      run:
+        working-directory: ${{ matrix.root }}
+    env:
+      ARM_USE_OIDC: "true"
+      ARM_USE_AZUREAD: "true"
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID_APPLY }} # secret de l'environnement prd
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - name: variables requises
+        run: |
+          missing=0
+          for v in ARM_CLIENT_ID ARM_TENANT_ID ARM_SUBSCRIPTION_ID; do
+            if [ -z "${!v}" ]; then
+              echo "::error::$v is empty: set the matching GitHub Actions secret"
+              missing=1
+            fi
+          done
+          exit "$missing"
+
+      - name: terraform init
+        run: terraform init
+
+      # Le plan relu sur la PR date d'avant le merge : on le recalcule ici, on publie son
+      # résumé, puis on applique exactement ce plan-là (aucun recalcul entre plan et apply).
+      - name: terraform plan
+        id: plan
+        run: |
+          set +e
+          terraform plan -lock-timeout=10m -detailed-exitcode -out=tfplan
+          code=$?
+          set -e
+          [ "$code" -eq 1 ] && exit 1
+          echo "exitcode=$code" >> "$GITHUB_OUTPUT"
+          {
+            echo "### terraform apply — \`${{ matrix.root }}\`"
+            terraform show -json tfplan | jq -r '
+              [.resource_changes[]? | select(.change.actions != ["no-op"])]
+              | if length == 0 then "No changes."
+                else (.[] | "- `\(.change.actions | join("/"))` \(.address)") end'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: terraform apply
+        if: steps.plan.outputs.exitcode == '2'
+        run: terraform apply -lock-timeout=10m tfplan
