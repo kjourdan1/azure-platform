@@ -33,7 +33,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        root: [infra/bootstrap]
+        root: [infra/bootstrap, infra/landing-zone]
     defaults:
       run:
         working-directory: ${{ matrix.root }}
@@ -102,7 +102,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        root: [infra/bootstrap]
+        root: [infra/bootstrap, infra/landing-zone]
     defaults:
       run:
         working-directory: ${{ matrix.root }}
@@ -148,8 +148,11 @@ jobs:
         id: plan
         run: |
           set +e
-          terraform plan -lock-timeout=5m -detailed-exitcode -out=tfplan
+          # Les lignes de refresh ([id=...]) contiennent des IDs parfois encodés (base64)
+          # que le masquage des secrets ne reconnaît pas : elles ne sont pas publiées.
+          terraform plan -lock-timeout=5m -detailed-exitcode -out=tfplan > plan.log 2>&1
           code=$?
+          sed -E 's/ \[id=[^]]*\]//' plan.log
           set -e
           # 0 = aucun changement, 2 = changements, 1 = erreur
           [ "$code" -eq 1 ] && exit 1
