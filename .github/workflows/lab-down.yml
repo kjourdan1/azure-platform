@@ -1,0 +1,52 @@
+name: lab-down
+
+# Destruction sans condition du cluster, chaque soir : un week-end oublié suffit à consommer
+# le budget. Pas d'approbation (l'environnement lab n'a pas de reviewer) : l'identité dédiée
+# ne peut que lire et supprimer des clusters AKS, rien d'autre (infra/lz-aks/lab.tf).
+on:
+  schedule:
+    - cron: "0 22 * * *" # 23 h à Paris l'hiver, minuit l'été
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  teardown:
+    runs-on: ubuntu-24.04
+    environment: lab # donne au jeton OIDC le sub ...:environment:lab attendu par l'identité
+    permissions:
+      id-token: write
+    # Même groupe que l'apply du cluster : jamais de suppression pendant un lab-up.
+    concurrency:
+      group: terraform-apply-infra/aks
+      cancel-in-progress: false
+    steps:
+      - uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID_LAB }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true # la subscription est retrouvée par son nom ci-dessous
+
+      # Pas de terraform destroy : il exigerait l'identité apply, donc une approbation chaque
+      # soir. Le state de infra/aks se réaligne au plan suivant (ressources absentes → recréées).
+      # Le resource group vide reste : gratuit, et hors des droits de l'identité.
+      - name: supprimer les clusters
+        run: |
+          sub=$(az account list --query "[?name=='azpl-lz-aks'].id | [0]" -o tsv)
+          if [ -z "$sub" ]; then
+            echo "::error::subscription azpl-lz-aks not visible to the lab identity"
+            exit 1
+          fi
+          echo "::add-mask::$sub"
+          az account set --subscription "$sub"
+          clusters=$(az aks list --query "[].[resourceGroup, name]" -o tsv)
+          if [ -z "$clusters" ]; then
+            echo "No cluster running." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          while read -r rg name; do
+            echo "Deleting $name ($rg)"
+            az aks delete --resource-group "$rg" --name "$name" --yes --output none
+            echo "- deleted \`$name\`" >> "$GITHUB_STEP_SUMMARY"
+          done <<< "$clusters"

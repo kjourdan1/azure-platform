@@ -1,0 +1,20 @@
+name: lab-up
+
+# Montée du cluster à la demande, avec la même approbation que tout apply (environnement
+# prd). lab-down le supprime chaque soir ; les couches permanentes ne bougent pas.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  apply:
+    uses: ./.github/workflows/terraform-apply-reusable.yml
+    with:
+      roots: '["infra/aks"]'
+    secrets: inherit
+    permissions:
+      contents: read
+      actions: read
+      id-token: write

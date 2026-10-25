@@ -1,0 +1,118 @@
+name: terraform-apply-reusable
+
+# Job d'apply partagé : terraform-apply (couches permanentes) et lab-up (cluster) l'appellent
+# avec leur liste de couches. Mêmes garde-fous partout : environnement prd protégé, plan
+# recalculé puis appliqué tel quel.
+on:
+  workflow_call:
+    inputs:
+      roots:
+        description: Couches à appliquer, en JSON, dans l'ordre de dépendance.
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+env:
+  TF_VERSION: "1.16.6"
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "false"
+
+jobs:
+  apply:
+    name: apply (${{ matrix.root }})
+    runs-on: ubuntu-24.04
+    # L'environnement porte la protection : approbation obligatoire, branche main uniquement.
+    # C'est aussi lui qui donne au jeton OIDC le sub ...:environment:prd attendu par l'identité apply.
+    environment: prd
+    permissions:
+      contents: read
+      actions: read # lecture des règles de protection de l'environnement
+      id-token: write
+    strategy:
+      fail-fast: false
+      max-parallel: 1 # les couches s'appliquent l'une après l'autre
+      matrix:
+        root: ${{ fromJSON(inputs.roots) }} # ordre de dépendance, fixé par l'appelant
+    # Un apply ne s'annule jamais en cours : les runs s'enchaînent par couche.
+    concurrency:
+      group: terraform-apply-${{ matrix.root }}
+      cancel-in-progress: false
+    defaults:
+      run:
+        working-directory: ${{ matrix.root }}
+    env:
+      ARM_USE_OIDC: "true"
+      ARM_USE_AZUREAD: "true"
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID_APPLY }} # secret de l'environnement prd
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_subscription_billing_scope: ${{ secrets.AZURE_BILLING_SCOPE }}
+      TF_VAR_budget_alert_email: ${{ secrets.BUDGET_ALERT_EMAIL }}
+      TF_VAR_operator_object_id: ${{ secrets.OPERATOR_OBJECT_ID }}
+    steps:
+      # GitHub crée un environnement inexistant à la volée, sans aucune protection. Si
+      # l'approbation n'est pas configurée, le job démarre sans attendre : on l'arrête ici.
+      - name: protection de l'environnement
+        working-directory: ${{ github.workspace }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          env_json=$(gh api "repos/${GITHUB_REPOSITORY}/environments/prd")
+          reviewers=$(jq '[.protection_rules[]? | select(.type == "required_reviewers")] | length' <<< "$env_json")
+          bypass=$(jq '.can_admins_bypass' <<< "$env_json")
+          if [ "$reviewers" -lt 1 ] || [ "$bypass" != "false" ]; then
+            echo "::error::environment prd must require a reviewer and forbid admin bypass"
+            exit 1
+          fi
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - name: variables requises
+        run: |
+          missing=0
+          for v in ARM_CLIENT_ID ARM_TENANT_ID ARM_SUBSCRIPTION_ID TF_VAR_subscription_billing_scope TF_VAR_budget_alert_email TF_VAR_operator_object_id; do
+            if [ -z "${!v}" ]; then
+              echo "::error::$v is empty: set the matching GitHub Actions secret"
+              missing=1
+            fi
+          done
+          exit "$missing"
+
+      - name: terraform init
+        run: terraform init
+
+      # Le plan relu sur la PR date d'avant le merge : on le recalcule ici, on publie son
+      # résumé, puis on applique exactement ce plan-là (aucun recalcul entre plan et apply).
+      - name: terraform plan
+        id: plan
+        run: |
+          set +e
+          # Lignes [id=...] non publiées : IDs parfois encodés, non reconnus par le masquage.
+          terraform plan -lock-timeout=10m -detailed-exitcode -out=tfplan > plan.log 2>&1
+          code=$?
+          sed -E 's/ \[id=[^]]*\]//' plan.log
+          set -e
+          [ "$code" -eq 1 ] && exit 1
+          echo "exitcode=$code" >> "$GITHUB_OUTPUT"
+          {
+            echo "### terraform apply — \`${{ matrix.root }}\`"
+            terraform show -json tfplan | jq -r '
+              [.resource_changes[]? | select(.change.actions != ["no-op"])]
+              | if length == 0 then "No changes."
+                else (.[] | "- `\(.change.actions | join("/"))` \(.address)") end'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: terraform apply
+        if: steps.plan.outputs.exitcode == '2'
+        run: |
+          set -o pipefail
+          terraform apply -lock-timeout=10m tfplan 2>&1 | sed -E 's/ \[id=[^]]*\]//'

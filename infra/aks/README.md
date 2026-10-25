@@ -18,10 +18,20 @@ au registre et au coffre de la couche `lz-aks`, qui restent permanents.
 - **Pas de Container Insights** : ingestion payante ; observabilité par kube-prometheus-stack.
 - **Cluster public** : un cluster privé exige un runner dans le VNet (cible self-hosted).
 
+- **Cycle de vie lab** : `lab-up` (manuel, approbation `prd`) applique cette couche ;
+  `lab-down` (chaque soir à 22 h UTC) supprime le cluster avec une identité qui ne sait faire
+  que ça. Un merge n'applique jamais cette couche, pour ne pas relancer la facture.
+- **`az aks delete` plutôt que `terraform destroy`** : le destroy exigerait l'identité apply
+  et donc une approbation chaque soir. Le state se réaligne au plan suivant.
+
 ## Limites connues
 - Pas de SLA (tier Free), pool unique système et applications.
 - Les exceptions checkov sont justifiées dans `cluster.tf`.
 
+- L'attribution AcrPull de l'ancienne identité kubelet reste orpheline jusqu'au `lab-up`
+  suivant, qui la remplace.
+- GitHub désactive les workflows planifiés après 60 jours sans activité sur le dépôt.
+
 ## Installation
-PR → plan commenté → merge → `terraform-apply` avec approbation.
+PR → plan commenté → merge → `lab-up` avec approbation. `lab-down` tourne seul chaque soir.
 Accès : `az aks get-credentials -g <rg> -n <cluster>` puis `kubelogin convert-kubeconfig -l azurecli`.

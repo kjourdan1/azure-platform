@@ -1,7 +1,7 @@
 data "azurerm_client_config" "current" {}
 
-# Resource group propre au cluster : c'est lui que lab-down détruira chaque soir, sans
-# toucher au réseau, au Key Vault ni à l'ACR (couche lz-aks, permanente).
+# Resource group propre au cluster, isolé du réseau, du Key Vault et de l'ACR (couche lz-aks,
+# permanente). lab-down supprime le cluster chaque soir ; le resource group vide reste.
 resource "azurerm_resource_group" "cluster" {
   name     = "rg-${local.project}-aks-cluster-${local.suffix}"
   location = var.location
