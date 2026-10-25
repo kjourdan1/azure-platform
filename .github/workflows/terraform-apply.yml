@@ -9,6 +9,7 @@ on:
       - "infra/landing-zone/**"
       - "infra/platform/**"
       - "infra/lz-aks/**"
+      - "infra/aks/**"
       - ".github/workflows/terraform-apply.yml"
   workflow_dispatch:
 
@@ -35,7 +36,7 @@ jobs:
       fail-fast: false
       max-parallel: 1 # les couches s'appliquent l'une après l'autre
       matrix:
-        root: [infra/landing-zone, infra/platform, infra/lz-aks] # ordre de dépendance
+        root: [infra/landing-zone, infra/platform, infra/lz-aks, infra/aks] # ordre de dépendance
     # Un apply ne s'annule jamais en cours : les runs s'enchaînent par couche.
     concurrency:
       group: terraform-apply-${{ matrix.root }}
@@ -51,6 +52,7 @@ jobs:
       ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       TF_VAR_subscription_billing_scope: ${{ secrets.AZURE_BILLING_SCOPE }}
       TF_VAR_budget_alert_email: ${{ secrets.BUDGET_ALERT_EMAIL }}
+      TF_VAR_operator_object_id: ${{ secrets.OPERATOR_OBJECT_ID }}
     steps:
       # GitHub crée un environnement inexistant à la volée, sans aucune protection. Si
       # l'approbation n'est pas configurée, le job démarre sans attendre : on l'arrête ici.
