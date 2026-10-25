@@ -19,7 +19,11 @@ approbation dans l'environnement `prd`.
   ALZ ne s'y applique.
 
 ## Limites connues
-- Aucune subscription placée pour l'instant : les policies n'ont encore rien à évaluer.
+- Subscriptions créées par alias (module AVM de subscription vending, compte MCA) : l'identité
+  apply doit détenir le rôle de facturation « Azure subscription creator » sur l'invoice section.
+  Détruire l'une d'elles l'annule (blocage d'environ 90 jours avant suppression).
+- Budgets par subscription : Cost Management ne supporte pas les management groups en MCA,
+  et un budget au niveau billing profile inclurait la subscription LAB.
 - Les affectations en `DoNotEnforce` seront réactivées quand la couche management (Log
   Analytics, DCR) existera.
 

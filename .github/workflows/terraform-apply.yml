@@ -47,6 +47,8 @@ jobs:
       ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID_APPLY }} # secret de l'environnement prd
       ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
       ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_subscription_billing_scope: ${{ secrets.AZURE_BILLING_SCOPE }}
+      TF_VAR_budget_alert_email: ${{ secrets.BUDGET_ALERT_EMAIL }}
     steps:
       # GitHub crée un environnement inexistant à la volée, sans aucune protection. Si
       # l'approbation n'est pas configurée, le job démarre sans attendre : on l'arrête ici.
@@ -75,7 +77,7 @@ jobs:
       - name: variables requises
         run: |
           missing=0
-          for v in ARM_CLIENT_ID ARM_TENANT_ID ARM_SUBSCRIPTION_ID; do
+          for v in ARM_CLIENT_ID ARM_TENANT_ID ARM_SUBSCRIPTION_ID TF_VAR_subscription_billing_scope TF_VAR_budget_alert_email; do
             if [ -z "${!v}" ]; then
               echo "::error::$v is empty: set the matching GitHub Actions secret"
               missing=1

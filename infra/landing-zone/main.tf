@@ -65,6 +65,9 @@ module "alz" {
 
   policy_assignments_to_modify = local.policy_assignments_to_modify
 
+  # Le placement se fait désormais depuis subscriptions.tf, au moment de la création
+  # par alias (le module de vending gère lui-même l'association au management group).
+
   policy_default_values = {
     email_security_contact = jsonencode({ value = var.security_contact_email })
   }
