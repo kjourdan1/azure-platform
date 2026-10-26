@@ -35,10 +35,12 @@ approbation dans l'environnement `prd`.
 - Subscriptions créées par alias (compte MCA) : l'identité apply doit détenir le rôle de
   facturation « Azure subscription creator » sur l'invoice section. MCA n'autorise qu'une
   création par 24 h : en ajouter deux fait échouer la seconde en `429`, à relancer le lendemain.
-- **L'alias ne vit que le temps de la création** (`subscription_alias`). Azure exige le droit
-  d'écriture sur un alias pour simplement le lire, ce qui casserait le plan des PR (identité en
-  lecture seule). Une fois la subscription créée, `created = true` la fait gérer par son ID,
-  retrouvé par son nom ; l'alias quitte le state, la subscription reste.
+- **L'alias ne vit que le temps de la création.** Azure exige le droit d'écriture sur un alias
+  pour simplement le lire, ce qui casserait le plan des PR (identité en lecture seule). Les
+  subscriptions sont gérées par leur ID, retrouvé par leur nom ; l'alias est retiré du state
+  par un bloc `removed`, sans appel à Azure. Créer une nouvelle subscription : réintroduire
+  temporairement la ressource `subscription_alias` (commit `e61e625`) et la variable du
+  billing scope, puis la retirer de la même façon.
 - **Pas d'alias dans le module de vending** : le désactiver après coup détruirait son action
   `subscription_cancel`, qui annule la subscription. Le module ne gère que l'existant.
 - Budgets par subscription : Cost Management ne supporte pas les management groups en MCA.
