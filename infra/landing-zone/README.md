@@ -32,9 +32,15 @@ approbation dans l'environnement `prd`.
   ALZ ne s'y applique.
 
 ## Limites connues
-- Subscriptions créées par alias (module AVM de subscription vending, compte MCA) : l'identité
-  apply doit détenir le rôle de facturation « Azure subscription creator » sur l'invoice section.
-  Détruire l'une d'elles l'annule (blocage d'environ 90 jours avant suppression).
+- Subscriptions créées par alias (compte MCA) : l'identité apply doit détenir le rôle de
+  facturation « Azure subscription creator » sur l'invoice section. MCA n'autorise qu'une
+  création par 24 h : en ajouter deux fait échouer la seconde en `429`, à relancer le lendemain.
+- **L'alias ne vit que le temps de la création** (`subscription_alias`). Azure exige le droit
+  d'écriture sur un alias pour simplement le lire, ce qui casserait le plan des PR (identité en
+  lecture seule). Une fois la subscription créée, `created = true` la fait gérer par son ID,
+  retrouvé par son nom ; l'alias quitte le state, la subscription reste.
+- **Pas d'alias dans le module de vending** : le désactiver après coup détruirait son action
+  `subscription_cancel`, qui annule la subscription. Le module ne gère que l'existant.
 - Budgets par subscription : Cost Management ne supporte pas les management groups en MCA.
   Le budget global (bootstrap) couvre l'ensemble au niveau du profil de facturation.
 - Un budget ou une alerte d'anomalie ne bloque rien et arrive avec 8 à 24 h de retard : la

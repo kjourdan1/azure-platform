@@ -3,6 +3,6 @@
 # secrets GitHub, le masquage des logs ne les couvrirait pas.
 output "subscription_ids" {
   description = "IDs des subscriptions vendues, par clé (platform, lz_aks)."
-  value       = { for key, sub in module.subscriptions : key => sub.subscription_id }
+  value       = local.subscription_ids
   sensitive   = true
 }

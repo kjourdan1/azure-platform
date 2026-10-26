@@ -142,18 +142,18 @@ resource "azapi_resource" "inherit_tag_role" {
 # Alerte d'anomalie de coût, gratuite : un écart inhabituel est signalé dès le lendemain,
 # là où un budget n'alerte qu'au franchissement d'un seuil.
 resource "azapi_resource" "anomaly_alert" {
-  for_each = module.subscriptions
+  for_each = local.subscription_ids
 
   type      = "Microsoft.CostManagement/scheduledActions@2023-11-01"
   name      = "anomaly-azpl-${replace(each.key, "_", "-")}"
-  parent_id = "/subscriptions/${each.value.subscription_id}"
+  parent_id = "/subscriptions/${each.value}"
 
   body = {
     kind = "InsightAlert"
     properties = {
       displayName = "Cost anomaly ${local.subscriptions[each.key].alias_name}"
       status      = "Enabled"
-      viewId      = "/subscriptions/${each.value.subscription_id}/providers/Microsoft.CostManagement/views/ms:DailyAnomalyByResourceGroup"
+      viewId      = "/subscriptions/${each.value}/providers/Microsoft.CostManagement/views/ms:DailyAnomalyByResourceGroup"
       notification = {
         to      = [var.budget_alert_email]
         subject = "Cost anomaly ${local.subscriptions[each.key].alias_name}"
