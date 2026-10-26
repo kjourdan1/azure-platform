@@ -8,6 +8,7 @@ on:
     paths:
       - "infra/landing-zone/**"
       - "infra/platform/**"
+      - "infra/lz-aks/**"
       - ".github/workflows/terraform-apply.yml"
   workflow_dispatch:
 
@@ -34,7 +35,7 @@ jobs:
       fail-fast: false
       max-parallel: 1 # les couches s'appliquent l'une après l'autre
       matrix:
-        root: [infra/landing-zone, infra/platform] # ordre de dépendance
+        root: [infra/landing-zone, infra/platform, infra/lz-aks] # ordre de dépendance
     # Un apply ne s'annule jamais en cours : les runs s'enchaînent par couche.
     concurrency:
       group: terraform-apply-${{ matrix.root }}
