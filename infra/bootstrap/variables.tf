@@ -77,3 +77,41 @@ variable "cost_center" {
   type        = string
   default     = "azure-platform"
 }
+
+# Scope MCA (invoice section) des subscriptions vendues, déjà utilisé par la landing zone :
+# le profil de facturation du budget global en est déduit.
+variable "subscription_billing_scope" {
+  description = "Billing scope MCA (invoice section)."
+  type        = string
+  sensitive   = true
+}
+
+variable "budget_alert_email" {
+  description = "E-mail de notification des alertes de budget et d'anomalie."
+  type        = string
+  sensitive   = true
+}
+
+variable "global_budget_amount" {
+  description = "Budget mensuel global (toutes subscriptions), en devise de facturation."
+  type        = number
+  default     = 50
+}
+
+variable "budget_start_date" {
+  description = "Début du budget global : premier jour d'un mois, format RFC 3339."
+  type        = string
+  default     = "2026-10-01T00:00:00Z"
+}
+
+variable "budget_end_date" {
+  description = "Fin du budget global et des alertes d'anomalie, format RFC 3339."
+  type        = string
+  default     = "2027-12-31T23:59:59Z"
+}
+
+variable "anomaly_alert_start_date" {
+  description = "Début de l'alerte d'anomalie de coût de LAB, format RFC 3339."
+  type        = string
+  default     = "2026-11-01T00:00:00Z"
+}

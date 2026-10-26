@@ -43,3 +43,9 @@ variable "budget_end_date" {
   type        = string
   default     = "2027-12-31T23:59:59Z"
 }
+
+variable "anomaly_alert_start_date" {
+  description = "Début des alertes d'anomalie de coût, format RFC 3339."
+  type        = string
+  default     = "2026-11-01T00:00:00Z"
+}
