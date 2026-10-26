@@ -54,7 +54,9 @@ resource "azapi_resource" "lab_anomaly_alert" {
     properties = {
       displayName = "Cost anomaly LAB"
       status      = "Enabled"
-      viewId      = "${data.azurerm_subscription.current.id}/providers/Microsoft.CostManagement/views/ms:DailyAnomalyByResourceGroup"
+      # Champ exigé par l'API en plus de notification.to (erreur 400 sinon).
+      notificationEmail = var.budget_alert_email
+      viewId            = "${data.azurerm_subscription.current.id}/providers/Microsoft.CostManagement/views/ms:DailyAnomalyByResourceGroup"
       notification = {
         to      = [var.budget_alert_email]
         subject = "Cost anomaly LAB"
