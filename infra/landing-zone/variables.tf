@@ -10,14 +10,6 @@ variable "security_contact_email" {
   default     = "security@azure-platform.invalid"
 }
 
-# Scope MCA (invoice section) où les subscriptions sont vendues : fourni par un secret
-# GitHub, jamais dans le code. sensitive pour que Terraform le masque dans le plan.
-variable "subscription_billing_scope" {
-  description = "Billing scope MCA (invoice section) pour la création des subscriptions par alias."
-  type        = string
-  sensitive   = true
-}
-
 # Destinataire des alertes de budget : un secret, pas un rôle, car l'Owner d'une
 # subscription créée par alias est l'identité apply, qui n'a pas de boîte mail.
 variable "budget_alert_email" {

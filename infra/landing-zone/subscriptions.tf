@@ -1,22 +1,19 @@
 locals {
-  # created = true une fois la subscription créée : elle est ensuite gérée par son ID,
-  # retrouvé par son nom, et son alias quitte le state (voir subscription_alias).
+  # Subscriptions existantes, gérées par leur ID retrouvé par leur nom. Pour en créer
+  # une nouvelle : réintroduire temporairement la ressource subscription_alias (commit
+  # e61e625), puis la retirer du state par un bloc removed une fois la création faite.
   subscriptions = {
     platform = {
       alias_name = "azpl-platform"
       # Management group direct : héberge le futur réseau hub et Log Analytics.
       management_group = "platform"
-      created          = false
     }
     lz_aks = {
       alias_name = "azpl-lz-aks"
       # online et non corp : l'ingress AKS est public, que corp interdit.
       management_group = "online"
-      created          = true
     }
   }
-
-  subscriptions_to_create = { for key, sub in local.subscriptions : key => sub if !sub.created }
 
   subscription_tags = {
     owner         = "kjourdan1"
@@ -48,36 +45,15 @@ locals {
   }
 }
 
-# Création par alias, et seulement le temps de la création. Azure exige le droit
-# Microsoft.Subscription/aliases/write pour simplement lire un alias : tant qu'il reste
-# dans le state, le plan des PR (identité en lecture seule) échoue au refresh. Une fois
-# la subscription créée, created = true la retire d'ici (l'alias est supprimé, la
-# subscription reste : un alias n'est que le nom de la demande de création).
-# Volontairement hors du module de vending : désactiver l'alias dans le module détruirait
-# son action subscription_cancel, qui annule la subscription.
-resource "azapi_resource" "subscription_alias" {
-  for_each = local.subscriptions_to_create
-
-  type      = "Microsoft.Subscription/aliases@2021-10-01"
-  name      = each.value.alias_name
-  parent_id = "/"
-
-  body = {
-    properties = {
-      displayName  = each.value.alias_name
-      workload     = "Production"
-      billingScope = var.subscription_billing_scope
-      additionalProperties = {
-        managementGroupId = "/providers/Microsoft.Management/managementGroups/${each.value.management_group}"
-        tags              = local.subscription_tags
-      }
-    }
-  }
-
-  response_export_values = ["properties.subscriptionId"]
+# Alias de création retiré du state sans appel à Azure : Azure exige le droit
+# Microsoft.Subscription/aliases/write pour simplement lire un alias, ce que l'identité
+# de plan des PR n'a pas. La subscription reste : un alias n'est que le nom de la demande
+# de création. Pas de destruction non plus : le droit de supprimer un alias n'est pas acquis.
+removed {
+  from = azapi_resource.subscription_alias
 
   lifecycle {
-    ignore_changes = [body, name]
+    destroy = false
   }
 }
 
@@ -95,13 +71,7 @@ data "azapi_resource_list" "subscriptions" {
 locals {
   existing_subscription_ids = { for sub in data.azapi_resource_list.subscriptions.output.enabled : sub.name => sub.id }
 
-  subscription_ids = {
-    for key, sub in local.subscriptions : key => (
-      sub.created
-      ? local.existing_subscription_ids[sub.alias_name]
-      : azapi_resource.subscription_alias[key].output.properties.subscriptionId
-    )
-  }
+  subscription_ids = { for key, sub in local.subscriptions : key => local.existing_subscription_ids[sub.alias_name] }
 }
 
 # L'ancien appel gérait aussi l'alias : il est oublié sans rien détruire. Son state ne
