@@ -1,5 +1,7 @@
 # Terraform — le state et les plans ne quittent jamais le backend distant
 .terraform/
+# Cache local de la bibliothèque ALZ (provider Azure/alz), retéléchargé à chaque plan
+.alzlib/
 *.tfstate
 *.tfstate.*
 *.tfplan
