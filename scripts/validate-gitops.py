@@ -55,8 +55,10 @@ def check_containers(docs, origin):
         spec = doc.get("spec") or {}
         template = spec.get("template") or spec.get("jobTemplate", {}).get("spec", {}).get("template") or {}
         pod = template.get("spec") or (spec if doc.get("kind") == "Pod" else {})
-        # Les pods de test Helm ne sont jamais lancés par Flux (tests désactivés par défaut).
-        if "helm.sh/hook" in (doc.get("metadata", {}).get("annotations") or {}):
+        # Les pods de test Helm ne sont jamais lancés par Flux (tests désactivés par défaut) ;
+        # les autres hooks (pre/post-install) le sont, et passent donc par Gatekeeper.
+        hooks = (doc.get("metadata", {}).get("annotations") or {}).get("helm.sh/hook", "")
+        if {"test", "test-success"} & set(hooks.split(",")):
             continue
         for kind in ("initContainers", "containers"):
             for c in pod.get(kind) or []:

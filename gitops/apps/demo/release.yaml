@@ -23,6 +23,14 @@ spec:
       sourceRef:
         kind: HelmRepository
         name: podinfo
+  # Le pod attend le Secret relu depuis Key Vault (quelques secondes à quelques minutes
+  # au premier lab-up) : on retente l'installation plutôt que de la laisser en échec.
+  install:
+    remediation:
+      retries: 5
+  upgrade:
+    remediation:
+      retries: 5
   values:
     extraEnvs:
       - name: PODINFO_UI_MESSAGE
