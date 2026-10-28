@@ -26,3 +26,19 @@ commande lue, plan expliqué), pas seulement lu.
 ### Le contexte large
 - [x] Comparaison avec l'existant en entreprise : SPN + certificat PFX vs OIDC, state créé en CLI vs bootstrap versionné
 - [ ] Limite assumée : endpoint public tant que runners GitHub hébergés ; cible runner self-hosted à IP fixe (risque des runners self-hosted sur dépôt public)
+
+## Session 2 — Socle GitOps (1/2) : DNS et identités des contrôleurs
+
+### Le problème
+- [ ] Pourquoi l'IP publique de la boutique change à chaque `lab-up`, et pourquoi il faut donc un outil (external-dns) qui écrit le DNS tout seul
+- [ ] Pourquoi un contrôleur dans le cluster a besoin d'une identité Azure, et pourquoi pas une clé API stockée
+
+### La solution
+- [ ] Délégation DNS : un enregistrement NS chez le parent (IONOS) confie la sous-zone `lab` à d'autres serveurs (Azure DNS) ; le parent ne répond plus pour `*.lab`
+- [ ] Moindre privilège par portée : *DNS Zone Contributor* sur la sous-zone seule, pas sur le domaine ni la subscription
+- [ ] Workload Identity : identité managée + credential fédéré (émetteur OIDC du cluster + `system:serviceaccount:<ns>:<sa>`) ; même mécanique que l'OIDC GitHub de la session 1
+- [ ] Pourquoi l'identité est permanente mais son credential fédéré éphémère : l'URL de l'émetteur OIDC change à chaque création de cluster
+- [ ] Secrets Officer vs Secrets User : ESO doit créer les mots de passe absents pour qu'ils ne passent jamais par le state Terraform
+
+### Le contexte large
+- [ ] Découpage des PR par couche : un output n'existe dans le state qu'après l'apply, d'où lz-aks avant aks
