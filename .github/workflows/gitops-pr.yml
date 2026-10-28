@@ -1,0 +1,61 @@
+name: gitops-pr
+
+# Validation de ce que Flux appliquera, sans accès au cluster ni à Azure : un manifest
+# invalide ou une variable de substitution inconnue échoue ici plutôt qu'au lab-up.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "gitops/**"
+      - "charts/**"
+      - "scripts/check-substitutions.sh"
+      - "infra/aks/locals.tf"
+      - ".github/workflows/gitops-pr.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gitops-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  KUSTOMIZE_VERSION: "5.7.1"
+  KUSTOMIZE_SHA256: "ea375e7372f9aa029129d4b2d16c66b7750b7f1213c4f66f910d981c895818d8"
+  KUBECONFORM_VERSION: "0.7.0"
+  KUBECONFORM_SHA256: "c31518ddd122663b3f3aa874cfe8178cb0988de944f29c74a0b9260920d115d3"
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Flux remplace silencieusement une variable inconnue par une chaîne vide.
+      - name: variables de substitution
+        run: ./scripts/check-substitutions.sh
+
+      # Binaires épinglés et vérifiés par empreinte, comme les actions par SHA.
+      - name: kustomize et kubeconform
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          cd "$RUNNER_TEMP"
+          curl -fsSLo kustomize.tgz "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_linux_amd64.tar.gz"
+          curl -fsSLo kubeconform.tgz "https://github.com/yannh/kubeconform/releases/download/v${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz"
+          echo "${KUSTOMIZE_SHA256}  kustomize.tgz" | sha256sum -c -
+          echo "${KUBECONFORM_SHA256}  kubeconform.tgz" | sha256sum -c -
+          tar -xzf kustomize.tgz -C bin kustomize
+          tar -xzf kubeconform.tgz -C bin kubeconform
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      # Un build par niveau Flux, dans l'ordre de réconciliation. Les CRD des contrôleurs
+      # (HelmRelease, ClusterIssuer…) n'ont pas encore de schéma : ignorées jusqu'à la PR 2.
+      - name: kustomize build | kubeconform
+        run: |
+          for dir in gitops/infrastructure/controllers gitops/infrastructure/configs gitops/apps; do
+            echo "::group::$dir"
+            kustomize build "$dir" | kubeconform -strict -summary -ignore-missing-schemas
+            echo "::endgroup::"
+          done
