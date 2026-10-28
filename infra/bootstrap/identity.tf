@@ -87,6 +87,19 @@ resource "azurerm_role_assignment" "apply_subscription" {
   principal_type       = "ServicePrincipal"
 }
 
+# Rafraîchir un cluster AKS appelle listClusterUserCredential, que Reader n'inclut pas :
+# sans ce rôle, le plan de infra/aks échoue dès que le cluster tourne. Il ne donne qu'un
+# kubeconfig sans secret (comptes locaux désactivés, accès à l'API par Entra + Azure RBAC),
+# donc aucun accès aux objets du cluster.
+resource "azurerm_role_assignment" "plan_aks_user" {
+  for_each = toset(var.platform_subscription_ids)
+
+  scope                = "/subscriptions/${each.value}"
+  role_definition_name = "Azure Kubernetes Service Cluster User Role"
+  principal_id         = azurerm_user_assigned_identity.ci["plan"].principal_id
+  principal_type       = "ServicePrincipal"
+}
+
 # plan pose un lease (verrou) sur le blob du state : c'est une écriture data plane.
 resource "azurerm_role_assignment" "ci_state" {
   for_each = local.ci_identities
