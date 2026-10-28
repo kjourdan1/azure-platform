@@ -15,9 +15,11 @@ au registre et au coffre de la couche `lz-aks`, qui restent permanents.
 - **Azure CNI Overlay + Cilium** : les pods ne consomment pas d'IP du VNet ; politiques
   réseau eBPF sans composant à installer.
 - **Add-on Azure Policy** : les policies AKS de la landing zone s'appliquent dans le cluster.
-- **Tier Free, un nœud B4ms** (4 vCPU, 16 Go) : environ 0,20 à 0,25 € par heure avec le load
+- **Tier Free, un nœud B4s_v2** (4 vCPU, 16 Go) : environ 0,20 à 0,25 € par heure avec le load
   balancer. Un B2s (4 Go) ne tient pas Flux, les contrôleurs, Prometheus et l'application ;
-  un seul B4ms plutôt que deux B2s, pour moins de surcoût système par nœud.
+  un seul B4s_v2 plutôt que deux B2s, pour moins de surcoût système par nœud. Le B4ms
+  (B-series v1), premier choix, est refusé à la création : AKS ne propose que les B-series v2
+  dans cette subscription en France Central (le message d'erreur liste les tailles permises).
 - **KEDA en add-on AKS** : scaling sur événements (file RabbitMQ), géré par Microsoft.
 - **Flux en extension AKS** (`gitops.tf`) plutôt que `flux bootstrap` : le bootstrap exige un
   jeton GitHub en écriture stocké ; ici le dépôt public est lu sans credential. Argo CD

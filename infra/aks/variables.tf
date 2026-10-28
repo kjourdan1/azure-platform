@@ -11,9 +11,9 @@ variable "environment" {
 }
 
 variable "system_node_vm_size" {
-  description = "Taille des nœuds : B4ms (4 vCPU, 16 Go). Un B2s (4 Go) ne tient pas Flux, les contrôleurs de la plateforme, Prometheus et l'application."
+  description = "Taille des nœuds : B4s_v2 (4 vCPU, 16 Go). Un B2s (4 Go) ne tient pas Flux, les contrôleurs de la plateforme, Prometheus et l'application ; AKS ne propose pas les B-series v1 (B4ms) dans cette subscription en France Central."
   type        = string
-  default     = "Standard_B4ms"
+  default     = "Standard_B4s_v2"
 }
 
 variable "system_node_count" {
