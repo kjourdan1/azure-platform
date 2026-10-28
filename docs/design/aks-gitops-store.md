@@ -93,7 +93,7 @@ HelmRelease), transférable tel quel. Argo CD figure dans les alternatives écar
 infra/landing-zone  + provider Microsoft.KubernetesConfiguration (extension Flux)
 infra/lz-aks        + zone DNS lab.killianjourdan.com
                     + identités managées (external-secrets, external-dns) et leurs rôles
-infra/aks           + nœud B4ms, add-on KEDA
+infra/aks           + nœud B4s_v2, add-on KEDA
                     + extension Flux + configuration Flux (3 Kustomizations ordonnées)
                     + credentials fédérés des identités (l'émetteur OIDC change à chaque cluster)
 gitops/             manifests Flux (contrôleurs, configs, applis)
@@ -103,9 +103,10 @@ charts/aks-store/   chart Helm de la plateforme pour la boutique
 
 ### Cluster (`infra/aks`)
 
-- **Nœud** : `system_node_vm_size = Standard_B4ms` (4 vCPU, 16 Go), un nœud. Un B2s (4 Go)
+- **Nœud** : `system_node_vm_size = Standard_B4s_v2` (4 vCPU, 16 Go), un nœud (le B4ms
+  initialement prévu est refusé par AKS dans cette région). Un B2s (4 Go)
   ne tient pas Flux + 6 contrôleurs + Prometheus + l'appli. Coût estimé ≈ 0,20–0,25 €/h
-  avec load balancer et IP : ~3 €/jour de lab. *Choix d'implémentation* : un B4ms plutôt que deux
+  avec load balancer et IP : ~3 €/jour de lab. *Choix d'implémentation* : un B4s_v2 plutôt que deux
   B2s (moins de surcoût système par nœud, même plafond FinOps).
 - **KEDA** via l'add-on AKS (`workload_autoscaler_profile { keda_enabled = true }`) : géré
   par Microsoft, cohérent avec l'approche A. *Choix d'implémentation.*
@@ -227,7 +228,7 @@ Sur PR touchant `gitops/**` ou `charts/**` : `helm lint` + `helm template` du ch
 ## Découpage en PR (ordre proposé)
 
 1. **Socle** : provider KubernetesConfiguration, zone DNS + identités (`lz-aks`),
-   nœud B4ms + KEDA + extension et configuration Flux + credentials fédérés (`infra/aks`),
+   nœud B4s_v2 + KEDA + extension et configuration Flux + credentials fédérés (`infra/aks`),
    squelette `gitops/`, workflow de validation `gitops-pr`.
 2. **Entrée et secrets** : cert-manager, Envoy Gateway, external-dns, ESO (générateurs +
    PushSecret) + leurs configs.

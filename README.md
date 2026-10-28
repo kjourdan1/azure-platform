@@ -95,7 +95,7 @@ lab-down      → every night, deletes the cluster with a least-privilege identi
 - **Environment values injected by Flux post-build substitution.** Tenant, subscription, DNS zone
   and client IDs never enter Git; a CI check rejects any `${VAR}` that Terraform does not provide,
   since Flux would silently replace it with an empty string.
-- **Free tier, one `Standard_B4ms` node, public API server.** A private cluster needs a runner
+- **Free tier, one `Standard_B4s_v2` node, public API server.** A private cluster needs a runner
   inside the VNet; the cluster is protected by Entra ID, Azure RBAC and disabled local accounts.
 
 ## Status

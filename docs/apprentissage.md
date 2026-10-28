@@ -60,5 +60,5 @@ commande lue, plan expliqué), pas seulement lu.
 - [ ] Lire le plan : le contenu des Kustomizations est masqué parce que la map de substitution est sensible
 
 ### Le contexte large
-- [ ] Ce que coûte le B4ms par heure, et pourquoi `lab-down` reste la vraie garantie de budget
+- [ ] Ce que coûte le B4s_v2 par heure ; pourquoi le B4ms a été refusé par AKS (tailles proposées par région et subscription ≠ tailles autorisées par la policy FinOps), et pourquoi `lab-down` reste la vraie garantie de budget
 - [ ] Vérifier une convergence avec les outils : `kubectl get kustomizations -n flux-system`, `kubectl describe kustomization`, events
