@@ -15,11 +15,20 @@ au registre et au coffre de la couche `lz-aks`, qui restent permanents.
 - **Azure CNI Overlay + Cilium** : les pods ne consomment pas d'IP du VNet ; politiques
   réseau eBPF sans composant à installer.
 - **Add-on Azure Policy** : les policies AKS de la landing zone s'appliquent dans le cluster.
-- **Tier Free, un nœud B4s_v2** (4 vCPU, 16 Go) : environ 0,20 à 0,25 € par heure avec le load
+- **Tier Free, un nœud `Standard_D4as_v7`** (4 vCPU AMD, 16 Go) : environ 0,25 € par heure avec le load
   balancer. Un B2s (4 Go) ne tient pas Flux, les contrôleurs, Prometheus et l'application ;
-  un seul B4s_v2 plutôt que deux B2s, pour moins de surcoût système par nœud. Le B4ms
-  (B-series v1), premier choix, est refusé à la création : AKS ne propose que les B-series v2
-  dans cette subscription en France Central (le message d'erreur liste les tailles permises).
+  un seul nœud 4 vCPU plutôt que deux petits, pour moins de surcoût système par nœud.
+- **Choisir une taille, c'est passer trois filtres**, découverts dans cet ordre :
+  1. la policy FinOps (`infra/landing-zone/finops.tf`) ;
+  2. les tailles qu'AKS propose dans la région pour cette subscription : le B4ms (B-series v1)
+     a été refusé à la création du cluster ;
+  3. le quota de vCPU par famille : les familles Bsv2, Dsv5 et Dasv5 sont à 0 sur cette
+     subscription (à crédit), et la hausse est refusée. Le B4s_v2 a laissé le cluster bloqué
+     en création, sans nœud. Les familles v6/v7 ont 10 vCPU.
+  Vérification avant tout changement de taille :
+  `az vm list-usage -l francecentral -o table` (quota par famille, total régional).
+  Le D4as_v7 (≈ 0,21 $/h) est la moins chère des tailles 16 Go qui passent les trois ; avec
+  le nœud de surge des mises à jour, le cluster consomme au plus 8 des 10 vCPU régionaux.
 - **KEDA en add-on AKS** : scaling sur événements (file RabbitMQ), géré par Microsoft.
 - **Flux en extension AKS** (`gitops.tf`) plutôt que `flux bootstrap` : le bootstrap exige un
   jeton GitHub en écriture stocké ; ici le dépôt public est lu sans credential. Argo CD
