@@ -21,3 +21,9 @@ variable "aks_nodes_subnet_prefix" {
   type        = string
   default     = "10.1.0.0/22"
 }
+
+variable "dns_zone_name" {
+  description = "Sous-zone publique du lab, déléguée depuis IONOS (hébergeur de killianjourdan.com)."
+  type        = string
+  default     = "lab.killianjourdan.com"
+}
