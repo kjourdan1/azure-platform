@@ -11,9 +11,9 @@ variable "environment" {
 }
 
 variable "system_node_vm_size" {
-  description = "Taille des nœuds système : B2s (2 vCPU, 4 Go), minimum supporté pour un pool système."
+  description = "Taille des nœuds : B4ms (4 vCPU, 16 Go). Un B2s (4 Go) ne tient pas Flux, les contrôleurs de la plateforme, Prometheus et l'application."
   type        = string
-  default     = "Standard_B2s"
+  default     = "Standard_B4ms"
 }
 
 variable "system_node_count" {
@@ -25,4 +25,16 @@ variable "system_node_count" {
 variable "operator_object_id" {
   description = "Object ID Entra de l'opérateur humain, administrateur du cluster via Azure RBAC."
   type        = string
+}
+
+variable "gitops_repository_url" {
+  description = "Dépôt lu par Flux. Public : lecture anonyme, aucun credential."
+  type        = string
+  default     = "https://github.com/kjourdan1/azure-platform"
+}
+
+variable "gitops_branch" {
+  description = "Branche suivie par Flux."
+  type        = string
+  default     = "main"
 }

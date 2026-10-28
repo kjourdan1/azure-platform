@@ -47,7 +47,8 @@ flowchart LR
 | Landing zone | `infra/landing-zone` | Azure Landing Zones (AVM pattern module, pinned library), subscription vending, FinOps policies, budgets and cost anomaly alerts | Permanent |
 | Platform | `infra/platform` | Central Log Analytics, hub VNet | Permanent |
 | AKS landing zone | `infra/lz-aks` | Spoke VNet peered to the hub, Key Vault, ACR, teardown identity, `lab.killianjourdan.com` DNS zone, controller identities (external-dns, External Secrets) | Permanent |
-| AKS | `infra/aks` | Cluster: OIDC + Workload Identity, Azure RBAC, CNI Overlay with Cilium, Azure Policy add-on | Created by `lab-up`, deleted nightly by `lab-down` |
+| AKS | `infra/aks` | Cluster: OIDC + Workload Identity, Azure RBAC, CNI Overlay with Cilium, Azure Policy and KEDA add-ons, Flux extension, federated credentials | Created by `lab-up`, deleted nightly by `lab-down` |
+| GitOps | `gitops/` | What Flux reconciles, in three ordered levels: platform controllers, their configurations, hosted apps | Reapplied by Flux on every `lab-up` |
 
 The common thread is the path of a secret: Key Vault provisioned and governed by policy, read
 through Workload Identity with no stored credential, materialised in the cluster by External
@@ -87,14 +88,23 @@ lab-down      → every night, deletes the cluster with a least-privilege identi
 - **`az aks delete` for the nightly teardown, not `terraform destroy`.** A destroy would need the
   apply identity, hence an approval every night. The teardown identity can only read and delete
   AKS clusters.
-- **Free tier, one `Standard_B2s` node, public API server.** A private cluster needs a runner
+- **Flux as the AKS extension, not `flux bootstrap` or Argo CD.** Bootstrap needs a GitHub token
+  with write access stored somewhere; the extension reads this public repository anonymously and
+  arrives with the cluster in the same apply. Argo CD is more widespread but sits outside the
+  native AKS integration and adds a UI to secure.
+- **Environment values injected by Flux post-build substitution.** Tenant, subscription, DNS zone
+  and client IDs never enter Git; a CI check rejects any `${VAR}` that Terraform does not provide,
+  since Flux would silently replace it with an empty string.
+- **Free tier, one `Standard_B4ms` node, public API server.** A private cluster needs a runner
   inside the VNet; the cluster is protected by Entra ID, Azure RBAC and disabled local accounts.
 
 ## Status
 
 - [x] Bootstrap, landing zone, platform, AKS landing zone deployed
 - [x] Cluster layer, `lab-up` and `lab-down` in place
-- [ ] GitOps with Flux: ingress, cert-manager, External Secrets, Kyverno, KEDA, kube-prometheus-stack
+- [x] GitOps foundation: Flux extension, three ordered levels, manifest validation on PRs
+- [ ] Platform controllers: Gateway API (Envoy Gateway), cert-manager, external-dns, External Secrets, kube-prometheus-stack, Kyverno
+- [ ] Hosted app: AKS Store Demo, KEDA scaling on its order queue
 - [ ] Custom Helm chart
 - [ ] AI inference layer: KAITO on a spot GPU pool, DCGM metrics, MLflow, APIM AI gateway
 - [ ] Drift detection and a daily sweep of billable resources

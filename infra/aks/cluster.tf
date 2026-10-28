@@ -38,6 +38,12 @@ resource "azurerm_kubernetes_cluster" "main" {
     tenant_id          = data.azurerm_client_config.current.tenant_id
   }
 
+  # KEDA en add-on géré par AKS : scaling sur des événements (longueur d'une file RabbitMQ)
+  # plutôt que sur le CPU, sans chart à maintenir.
+  workload_autoscaler_profile {
+    keda_enabled = true
+  }
+
   # Gouvernance dans le cluster : les policies AKS de la landing zone (privilèges,
   # HTTPS) s'appliquent via l'add-on Azure Policy.
   azure_policy_enabled = true

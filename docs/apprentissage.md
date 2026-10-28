@@ -42,3 +42,23 @@ commande lue, plan expliqué), pas seulement lu.
 
 ### Le contexte large
 - [ ] Découpage des PR par couche : un output n'existe dans le state qu'après l'apply, d'où lz-aks avant aks
+
+## Session 3 — Socle GitOps (2/2) : Flux branché sur le dépôt
+
+### Le problème
+- [ ] Pourquoi un cluster détruit chaque soir rend le GitOps indispensable (et pas juste pratique)
+- [ ] Réconciliation : Flux compare en continu l'état désiré (Git) et l'état réel (cluster), et corrige l'écart ; ce que ça change par rapport à un `kubectl apply` en CI
+
+### La solution
+- [ ] Extension AKS vs `flux bootstrap` : qui installe Flux, et pourquoi le bootstrap aurait demandé un jeton GitHub en écriture
+- [ ] `GitRepository` (où lire) vs `Kustomization` Flux (quoi appliquer, dans quel ordre) vs `kustomization.yaml` Kustomize (comment assembler les fichiers) : trois objets qui portent presque le même nom
+- [ ] `depends_on` + `wait` : pourquoi un `ClusterIssuer` échouerait avant que cert-manager ait installé sa CRD
+- [ ] `garbage_collection_enabled` : supprimer un fichier de Git supprime l'objet du cluster
+- [ ] Post-build substitution : d'où viennent les `${VAR}`, et pourquoi une variable inconnue devient une chaîne vide sans erreur
+- [ ] Credentials fédérés éphémères : recréés à chaque `lab-up` avec la nouvelle URL d'émetteur OIDC
+- [ ] KEDA en add-on : ce qu'AKS installe, et ce qu'il restera à déclarer (`ScaledObject`)
+- [ ] Lire le plan : le contenu des Kustomizations est masqué parce que la map de substitution est sensible
+
+### Le contexte large
+- [ ] Ce que coûte le B4ms par heure, et pourquoi `lab-down` reste la vraie garantie de budget
+- [ ] Vérifier une convergence avec les outils : `kubectl get kustomizations -n flux-system`, `kubectl describe kustomization`, events

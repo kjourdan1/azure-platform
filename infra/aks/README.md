@@ -1,8 +1,9 @@
 # AKS
 
 ## Problème résolu
-Un cluster Kubernetes de production prêt pour le GitOps et pour le chemin des secrets
-sans credential stocké, créable et destructible à la demande pour tenir le budget.
+Un cluster Kubernetes qui se reconstruit seul depuis Git : à chaque `lab-up`, Flux
+réinstalle la plateforme et les applications décrites dans `gitops/`, sans credential stocké
+et sans étape manuelle, puis `lab-down` détruit tout le soir pour tenir le budget.
 
 ## Approche retenue
 Cluster dans son propre resource group (subscription `azpl-lz-aks`), raccordé au subnet,
@@ -14,7 +15,20 @@ au registre et au coffre de la couche `lz-aks`, qui restent permanents.
 - **Azure CNI Overlay + Cilium** : les pods ne consomment pas d'IP du VNet ; politiques
   réseau eBPF sans composant à installer.
 - **Add-on Azure Policy** : les policies AKS de la landing zone s'appliquent dans le cluster.
-- **Tier Free, un nœud B2s** : environ 2 € par jour de fonctionnement avec le load balancer.
+- **Tier Free, un nœud B4ms** (4 vCPU, 16 Go) : environ 0,20 à 0,25 € par heure avec le load
+  balancer. Un B2s (4 Go) ne tient pas Flux, les contrôleurs, Prometheus et l'application ;
+  un seul B4ms plutôt que deux B2s, pour moins de surcoût système par nœud.
+- **KEDA en add-on AKS** : scaling sur événements (file RabbitMQ), géré par Microsoft.
+- **Flux en extension AKS** (`gitops.tf`) plutôt que `flux bootstrap` : le bootstrap exige un
+  jeton GitHub en écriture stocké ; ici le dépôt public est lu sans credential. Argo CD
+  écarté : hors intégration native AKS, UI à sécuriser en plus.
+- **Trois Kustomizations ordonnées** : `infra-controllers` → `infra-configs` → `apps`, avec
+  `wait` : les CRD existent avant les ressources qui les utilisent.
+- **Valeurs d'environnement par post-build substitution** : tenant, subscription, zone DNS,
+  coffre et client IDs arrivent dans `gitops/` sous forme de `${VAR}`, jamais committés.
+  Marquées sensibles : le plan publié n'affiche pas le contenu des Kustomizations.
+- **Credentials fédérés ici, identités dans `lz-aks`** : l'URL de l'émetteur OIDC change à
+  chaque création de cluster ; l'identité et son rôle, eux, sont stables.
 - **Pas de Container Insights** : ingestion payante ; observabilité par kube-prometheus-stack.
 - **Cluster public** : un cluster privé exige un runner dans le VNet (cible self-hosted).
 
@@ -35,3 +49,6 @@ au registre et au coffre de la couche `lz-aks`, qui restent permanents.
 ## Installation
 PR → plan commenté → merge → `lab-up` avec approbation. `lab-down` tourne seul chaque soir.
 Accès : `az aks get-credentials -g <rg> -n <cluster>` puis `kubelogin convert-kubeconfig -l azurecli`.
+Convergence après `lab-up` : `kubectl get kustomizations -n flux-system` (trois `Ready=True`) ;
+`kubectl get cm cluster-info -n flux-system -o jsonpath='{.data.dnsZone}'` prouve que la
+substitution fonctionne.

@@ -1,0 +1,9 @@
+# Preuve visible de la post-build substitution : après lab-up, dnsZone doit valoir la zone
+# du lab, pas `${DNS_ZONE}` ni une chaîne vide.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cluster-info
+  namespace: flux-system
+data:
+  dnsZone: ${DNS_ZONE}
