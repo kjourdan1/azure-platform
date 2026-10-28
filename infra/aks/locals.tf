@@ -27,6 +27,7 @@ locals {
     KEY_VAULT_URL          = local.lz_aks.key_vault_uri
     ESO_CLIENT_ID          = local.lz_aks.workload_identities.external_secrets.client_id
     EXTERNAL_DNS_CLIENT_ID = local.lz_aks.workload_identities.external_dns.client_id
+    SECRET_EXPIRES_AT      = timeadd(time_rotating.secret_expiry.rfc3339, "1440h")
   })
 
   # Compte de service Kubernetes autorisé à utiliser chaque identité (namespace:nom).
