@@ -1,4 +1,8 @@
-# Niveau 1 : contrôleurs de la plateforme (HelmRelease) et leurs CRD. Rempli en PR 2.
+# Niveau 1 : contrôleurs de la plateforme (HelmRelease) et leurs CRD.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-resources: []
+resources:
+  - envoy-gateway
+  - cert-manager
+  - external-secrets
+  - external-dns

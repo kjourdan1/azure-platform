@@ -1,0 +1,17 @@
+# Configuration du provider Azure d'external-dns : où écrire, et avec quelle identité.
+# Aucun secret ici (identifiants injectés par Flux, authentification par Workload Identity),
+# mais le chart attend ce fichier dans un Secret.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: external-dns-azure
+  namespace: external-dns
+type: Opaque
+stringData:
+  azure.json: |
+    {
+      "tenantId": "${AZURE_TENANT_ID}",
+      "subscriptionId": "${AZURE_SUBSCRIPTION_ID}",
+      "resourceGroup": "${DNS_RESOURCE_GROUP}",
+      "useWorkloadIdentityExtension": true
+    }
