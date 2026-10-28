@@ -46,7 +46,7 @@ flowchart LR
 | Bootstrap | `infra/bootstrap` | Remote state (Entra-only storage account), plan/apply identities federated with GitHub OIDC, global budget | Applied locally, once |
 | Landing zone | `infra/landing-zone` | Azure Landing Zones (AVM pattern module, pinned library), subscription vending, FinOps policies, budgets and cost anomaly alerts | Permanent |
 | Platform | `infra/platform` | Central Log Analytics, hub VNet | Permanent |
-| AKS landing zone | `infra/lz-aks` | Spoke VNet peered to the hub, Key Vault, ACR, teardown identity | Permanent |
+| AKS landing zone | `infra/lz-aks` | Spoke VNet peered to the hub, Key Vault, ACR, teardown identity, `lab.killianjourdan.com` DNS zone, controller identities (external-dns, External Secrets) | Permanent |
 | AKS | `infra/aks` | Cluster: OIDC + Workload Identity, Azure RBAC, CNI Overlay with Cilium, Azure Policy add-on | Created by `lab-up`, deleted nightly by `lab-down` |
 
 The common thread is the path of a secret: Key Vault provisioned and governed by policy, read
