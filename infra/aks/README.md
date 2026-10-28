@@ -38,6 +38,10 @@ au registre et au coffre de la couche `lz-aks`, qui restent permanents.
 - **Valeurs d'environnement par post-build substitution** : tenant, subscription, zone DNS,
   coffre et client IDs arrivent dans `gitops/` sous forme de `${VAR}`, jamais committés.
   Marquées sensibles : le plan publié n'affiche pas le contenu des Kustomizations.
+- **Date d'expiration des secrets** (`secrets.tf`) : la policy ALZ refuse un secret Key Vault
+  valide plus de 90 jours. `time_rotating` (30 jours) + 60 jours donne une date stable entre
+  deux rotations, injectée dans `gitops/` ; une date recalculée à chaque plan changerait la
+  configuration Flux à chaque PR.
 - **Credentials fédérés ici, identités dans `lz-aks`** : l'URL de l'émetteur OIDC change à
   chaque création de cluster ; l'identité et son rôle, eux, sont stables.
 - **Pas de Container Insights** : ingestion payante ; observabilité par kube-prometheus-stack.
