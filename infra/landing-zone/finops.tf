@@ -3,12 +3,15 @@ locals {
 
   # Tailles de VM autorisées dans toute la hiérarchie, nœuds AKS compris (la policy couvre
   # aussi les scale sets). Aucune taille GPU : la couche IA ajoutera une exemption ciblée
-  # sur son resource group, avec quota et budget dédiés.
+  # sur son resource group, avec quota et budget dédiés. Les Dasv7 (AMD) sont là pour AKS :
+  # la subscription n'a aucun quota de vCPU pour les familles Bsv2 / Dsv5 / Dasv5 en France
+  # Central, et AKS n'y propose plus les B-series v1.
   allowed_vm_skus = [
     "Standard_B1s", "Standard_B1ms", "Standard_B2s", "Standard_B2ms", "Standard_B4ms",
     "Standard_B2s_v2", "Standard_B2ls_v2", "Standard_B4s_v2", "Standard_B4ls_v2",
     "Standard_D2s_v5", "Standard_D4s_v5", "Standard_D2as_v5", "Standard_D4as_v5",
     "Standard_D2ads_v5", "Standard_D4ads_v5",
+    "Standard_D2as_v7", "Standard_D4as_v7",
   ]
 
   # Ressources à coût fixe élevé, facturées à l'heure même sans trafic. Elles restent
