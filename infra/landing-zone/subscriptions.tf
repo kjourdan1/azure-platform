@@ -26,14 +26,15 @@ locals {
   # observabilité), enregistrés au moment de la vente : les couches suivantes n'ont pas
   # à porter ce droit.
   resource_providers = {
-    "Microsoft.Consumption"         = []
-    "Microsoft.ContainerRegistry"   = []
-    "Microsoft.ContainerService"    = []
-    "Microsoft.Insights"            = []
-    "Microsoft.KeyVault"            = []
-    "Microsoft.ManagedIdentity"     = []
-    "Microsoft.Network"             = []
-    "Microsoft.OperationalInsights" = []
+    "Microsoft.Consumption"             = []
+    "Microsoft.ContainerRegistry"       = []
+    "Microsoft.ContainerService"        = []
+    "Microsoft.Insights"                = []
+    "Microsoft.KeyVault"                = []
+    "Microsoft.KubernetesConfiguration" = []
+    "Microsoft.ManagedIdentity"         = []
+    "Microsoft.Network"                 = []
+    "Microsoft.OperationalInsights"     = []
   }
 
   # Par subscription : alertes à 10, 25 et 50 € (20/50/100 % de 50 €), plus la prévision.
