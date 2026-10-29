@@ -15,6 +15,10 @@ resource "azurerm_virtual_network" "spoke" {
 }
 
 # Seul le trafic web entrant est ouvert depuis Internet, vers l'ingress du cluster.
+# Destination « * » : le load balancer d'AKS utilise le Floating IP, le paquet arrive au nœud
+# avec l'IP publique du Service comme destination, pas l'IP du nœud. Cette IP change à chaque
+# lab-up ; le NSG qu'AKS gère sur les cartes réseau des nœuds, lui, la connaît et filtre au
+# plus juste. Une destination limitée au subnet bloquait tout (challenge Let's Encrypt compris).
 resource "azurerm_network_security_group" "aks_nodes" {
   #checkov:skip=CKV_AZURE_160:Port 80 requis par l'ingress : redirection HTTPS et challenge ACME HTTP-01 de cert-manager
   name                = "nsg-${local.project}-aks-nodes-${local.suffix}"
@@ -30,7 +34,7 @@ resource "azurerm_network_security_group" "aks_nodes" {
     protocol                   = "Tcp"
     source_address_prefix      = "Internet"
     source_port_range          = "*"
-    destination_address_prefix = var.aks_nodes_subnet_prefix
+    destination_address_prefix = "*"
     destination_port_ranges    = ["80", "443"]
   }
 }

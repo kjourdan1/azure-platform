@@ -44,6 +44,10 @@ spec:
     securityContext:
       allowPrivilegeEscalation: false
       runAsNonRoot: true
+      # L'image déclare son utilisateur par son nom (app) : sans UID numérique, Kubernetes
+      # refuse de démarrer un conteneur runAsNonRoot. 65532 = convention « nonroot ».
+      runAsUser: 65532
+      runAsGroup: 65532
       readOnlyRootFilesystem: true
       capabilities:
         drop: ["ALL"]

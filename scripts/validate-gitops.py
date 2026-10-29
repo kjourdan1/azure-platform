@@ -97,6 +97,14 @@ def main():
             elif doc["kind"] == "HelmRelease":
                 releases.append(doc)
         failures += [f"container: {b}" for b in check_containers(yaml.safe_load_all(built), level)]
+        # Le provider Azure d'ESO réserve le tag managed-by ; le déclarer bloque le PushSecret.
+        for doc in yaml.safe_load_all(built):
+            if doc and doc["kind"] == "PushSecret":
+                for item in doc["spec"].get("data", []):
+                    tags = ((item.get("metadata") or {}).get("spec") or {}).get("tags") or {}
+                    if "managed-by" in tags:
+                        failures.append(f"PushSecret {doc['metadata']['namespace']}/"
+                                        f"{doc['metadata']['name']} : tag managed-by réservé par ESO")
 
     for rel in releases:
         ns_rel, name = rel["metadata"]["namespace"], rel["metadata"]["name"]
