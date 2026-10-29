@@ -73,7 +73,10 @@ Nothing here asks to be taken on trust. Each claim points to something public an
 | Infrastructure changes are reviewed before being applied | Pull requests carry the `terraform plan` as a comment, e.g. [the Foundry layer](https://github.com/kjourdan1/azure-platform/pull/20) (9 to add) |
 | Applies go through a protected environment | [`apply-ai`](https://github.com/kjourdan1/azure-platform/actions/workflows/apply-ai.yml), [`apply-landing-zone`](https://github.com/kjourdan1/azure-platform/actions/workflows/apply-landing-zone.yml) runs, each approved |
 | The cluster does not survive the night | [`lab-down`](https://github.com/kjourdan1/azure-platform/actions/workflows/lab-down.yml), scheduled every evening |
+| A cluster rebuilt from Git serves HTTPS with a value that round-trips through Key Vault | https://hello.lab.killianjourdan.com, online only while the lab is up (`lab-up`) |
 | Manifests are validated against the cluster's admission rules before merge | [`gitops-pr`](https://github.com/kjourdan1/azure-platform/actions/workflows/gitops-pr.yml): CRD schemas and the ALZ Gatekeeper rule on every rendered chart |
+
+![Microsoft Foundry: gpt-5.4-mini deployed in the EU data zone, project azure-platform](docs/images/foundry-playground.png)
 
 ### Measured cost
 
@@ -90,6 +93,8 @@ Actual cost from Azure Cost Management, October 1–29, 2026, all subscriptions:
 | **Total** | | **€2.43** |
 
 Foundry has no fixed cost: the account, project and Standard deployment bill per token only.
+
+![Azure Cost Management, October 2026: €2.42 actual, €2.63 forecast](docs/images/cost-october-2026.png)
 
 ## Pipeline
 
@@ -145,7 +150,7 @@ lab-down      → every night, deletes the cluster with a least-privilege identi
 - [x] Bootstrap, landing zone, platform, AKS landing zone deployed
 - [x] Cluster layer, `lab-up` and `lab-down` in place
 - [x] GitOps foundation: Flux extension, three ordered levels, manifest validation on PRs
-- [ ] Ingress and secrets: Gateway API (Envoy Gateway), cert-manager, external-dns, External Secrets; demo page whose content round-trips through Key Vault (merged, first convergence in progress)
+- [x] Ingress and secrets: Gateway API (Envoy Gateway), cert-manager, external-dns, External Secrets; demo page whose content round-trips through Key Vault
 - [ ] Observability and governance: kube-prometheus-stack, Kyverno
 - [ ] Hosted app: AKS Store Demo, KEDA scaling on its order queue
 - [ ] Custom Helm chart
