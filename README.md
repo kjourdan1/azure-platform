@@ -76,6 +76,8 @@ Nothing here asks to be taken on trust. Each claim points to something public an
 | A cluster rebuilt from Git serves HTTPS with a value that round-trips through Key Vault | https://hello.lab.killianjourdan.com, online only while the lab is up (`lab-up`) |
 | Manifests are validated against the cluster's admission rules before merge | [`gitops-pr`](https://github.com/kjourdan1/azure-platform/actions/workflows/gitops-pr.yml): CRD schemas and the ALZ Gatekeeper rule on every rendered chart |
 
+![hello.lab.killianjourdan.com over HTTPS: the message is a value generated in the cluster, written to Key Vault and read back from it](docs/images/hello-demo.png)
+
 ![Microsoft Foundry: gpt-5.4-mini deployed in the EU data zone, project azure-platform](docs/images/foundry-playground.png)
 
 ### Measured cost
