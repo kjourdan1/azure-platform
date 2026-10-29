@@ -44,8 +44,11 @@ Couche permanente dans la subscription `azpl-lz-aks`, resource group dédié :
 
 ## Installation
 PR → plan commenté → merge → `terraform-apply` avec approbation.
-Puis copier `terraform output -raw smoke_client_id` dans le secret `AZURE_CLIENT_ID_AI_SMOKE`
-de l'environnement GitHub `lab`, et lancer le workflow `ai-smoke` : le résumé du run montre la
-réponse du modèle et les tokens consommés.
+Puis renseigner le secret `AZURE_CLIENT_ID_AI_SMOKE` de l'environnement GitHub `lab` avec le
+client ID de l'identité `id-azpl-ai-smoke-prd-frc-001` (identifiant, pas un secret : stocké en
+secret pour rester masqué dans les logs publics). Lecture sans Terraform :
+`az identity show -g rg-azpl-ai-prd-frc-001 -n id-azpl-ai-smoke-prd-frc-001 --query clientId -o tsv`,
+ou portail Azure → Identités managées. Lancer ensuite le workflow `ai-smoke` : le résumé du run
+montre la réponse du modèle et les tokens consommés.
 
 Utilisation interactive : portail Foundry (https://ai.azure.com), projet `azure-platform`.
