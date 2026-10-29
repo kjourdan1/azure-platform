@@ -4,7 +4,7 @@ apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
 metadata:
   name: jetstack
-  namespace: cert-manager
+  namespace: flux-system
 spec:
   url: https://charts.jetstack.io
   interval: 12h
@@ -13,12 +13,13 @@ apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
   name: cert-manager
-  namespace: cert-manager
+  namespace: flux-system
 spec:
   interval: 1h
+  targetNamespace: cert-manager
+  releaseName: cert-manager
   dependsOn:
     - name: envoy-gateway
-      namespace: envoy-gateway-system
   chart:
     spec:
       chart: cert-manager
