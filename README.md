@@ -1,9 +1,14 @@
 # azure-platform
 
+[![lab-down](https://github.com/kjourdan1/azure-platform/actions/workflows/lab-down.yml/badge.svg)](https://github.com/kjourdan1/azure-platform/actions/workflows/lab-down.yml)
+[![apply-ai](https://github.com/kjourdan1/azure-platform/actions/workflows/apply-ai.yml/badge.svg)](https://github.com/kjourdan1/azure-platform/actions/workflows/apply-ai.yml)
+[![ai-smoke](https://github.com/kjourdan1/azure-platform/actions/workflows/ai-smoke.yml/badge.svg)](https://github.com/kjourdan1/azure-platform/actions/workflows/ai-smoke.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 An Azure platform built the way a client engagement would be: a governed landing zone in
-Terraform, an AKS cluster ready for GitOps, then a self-hosted AI inference layer. Everything
-goes through pull requests with a reviewed plan, and the expensive parts are created on demand
-and destroyed every night.
+Terraform, an AKS cluster run through GitOps, and keyless Azure AI Foundry foundations.
+Everything goes through pull requests with a reviewed plan, and the expensive parts are created
+on demand and destroyed every night. **Measured cost: €2.43 for October 2026.**
 
 ## The problem
 
@@ -32,6 +37,7 @@ flowchart LR
         kv[Key Vault]
         acr[ACR]
         aks[AKS cluster<br/>on demand]
+        foundry[AI Foundry<br/>gpt-5.4-mini, EU data zone]
       end
     end
   end
@@ -39,11 +45,13 @@ flowchart LR
   hub <-- peering --> spoke
   aks --> acr
   aks -. Workload Identity .-> kv
+  gh -. OIDC, no key .-> foundry
+  foundry -. token usage .-> law
 ```
 
 | Layer | Path | Content | Lifecycle |
 |---|---|---|---|
-| Bootstrap | `infra/bootstrap` | Remote state (Entra-only storage account), plan/apply identities federated with GitHub OIDC, global budget | Applied locally, once |
+| Bootstrap | `infra/bootstrap` | Remote state (Entra-only storage account), plan/apply identities federated with GitHub OIDC | Applied by hand, reviewed plan |
 | Landing zone | `infra/landing-zone` | Azure Landing Zones (AVM pattern module, pinned library), subscription vending, FinOps policies, budgets and cost anomaly alerts | Permanent |
 | Platform | `infra/platform` | Central Log Analytics, hub VNet | Permanent |
 | AKS landing zone | `infra/lz-aks` | Spoke VNet peered to the hub, Key Vault, ACR, teardown identity, `lab.killianjourdan.com` DNS zone, controller identities (external-dns, External Secrets) | Permanent |
@@ -54,6 +62,41 @@ flowchart LR
 The common thread is the path of a secret: Key Vault provisioned and governed by policy, read
 through Workload Identity with no stored credential, materialised in the cluster by External
 Secrets, consumed by the application. No secret is ever committed, at any step.
+
+## Evidence
+
+Nothing here asks to be taken on trust. Each claim points to something public and dated.
+
+| Claim | Evidence |
+|---|---|
+| Foundry answers with no API key (GitHub OIDC → Entra → model) | [`ai-smoke` run](https://github.com/kjourdan1/azure-platform/actions/workflows/ai-smoke.yml): answer and token usage in the run summary |
+| Infrastructure changes are reviewed before being applied | Pull requests carry the `terraform plan` as a comment, e.g. [the Foundry layer](https://github.com/kjourdan1/azure-platform/pull/20) (9 to add) |
+| Applies go through a protected environment | [`apply-ai`](https://github.com/kjourdan1/azure-platform/actions/workflows/apply-ai.yml), [`apply-landing-zone`](https://github.com/kjourdan1/azure-platform/actions/workflows/apply-landing-zone.yml) runs, each approved |
+| The cluster does not survive the night | [`lab-down`](https://github.com/kjourdan1/azure-platform/actions/workflows/lab-down.yml), scheduled every evening |
+| A cluster rebuilt from Git serves HTTPS with a value that round-trips through Key Vault | https://hello.lab.killianjourdan.com, online only while the lab is up (`lab-up`) |
+| Manifests are validated against the cluster's admission rules before merge | [`gitops-pr`](https://github.com/kjourdan1/azure-platform/actions/workflows/gitops-pr.yml): CRD schemas and the ALZ Gatekeeper rule on every rendered chart |
+
+![hello.lab.killianjourdan.com over HTTPS: the message is a value generated in the cluster, written to Key Vault and read back from it](docs/images/hello-demo.png)
+
+![Microsoft Foundry: gpt-5.4-mini deployed in the EU data zone, project azure-platform](docs/images/foundry-playground.png)
+
+### Measured cost
+
+Actual cost from Azure Cost Management, October 1–29, 2026, all subscriptions:
+
+| Subscription | Item | Cost |
+|---|---|---|
+| `azpl-lz-aks` | AKS nodes (only while the lab is up) | €1.13 |
+| | Container Registry (Basic) | €0.37 |
+| | Load balancer | €0.19 |
+| | Storage, network, DNS, Key Vault | €0.10 |
+| `LAB` | Microsoft Defender for Cloud | €0.64 |
+| `azpl-platform` | Hub VNet, Log Analytics | €0.00 |
+| **Total** | | **€2.43** |
+
+Foundry has no fixed cost: the account, project and Standard deployment bill per token only.
+
+![Azure Cost Management, October 2026: €2.42 actual, €2.63 forecast](docs/images/cost-october-2026.png)
 
 ## Pipeline
 
@@ -122,6 +165,10 @@ lab-down      → every night, deletes the cluster with a least-privilege identi
 - Key Vault, ACR and the AKS API are public endpoints (Entra-only access) while CI runs on
   GitHub-hosted runners with dynamic IPs. Private endpoints come with a self-hosted runner.
 - MCA billing allows one new subscription per 24 hours.
+- `infra/bootstrap` is ahead of its state: the global budget, the cost anomaly alert, the GitHub
+  environment management and the subscription-level Contributor assignments are in code but were
+  never applied (GitHub settings are managed by hand). Per-subscription budgets from the landing
+  zone are in place. Reconciling this, import or removal, is a dedicated task.
 - The `alz` provider reports that three policies of the Microsoft cloud security benchmark need
   manual role assignments; they are `AuditIfNotExists`, so nothing is deployed in the meantime.
 
