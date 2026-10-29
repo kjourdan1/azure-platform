@@ -58,6 +58,11 @@ Terraform (`time_rotating`, variable `${SECRET_EXPIRES_AT}`) et repoussée à ch
   | `${SECRET_EXPIRES_AT}` | Date d'expiration des secrets écrits dans Key Vault (30 à 60 jours) |
 
   La liste fait foi dans `infra/aks/locals.tf` (`flux_substitutions`).
+- **HelmRelease et HelmRepository dans `flux-system`**, chart installé ailleurs par
+  `targetNamespace` : l'extension Flux d'AKS impose le multi-tenant, le helm-controller agit
+  sous le compte `flux-applier` du namespace de la HelmRelease, et seul celui de `flux-system`
+  a des droits. Une HelmRelease placée dans son namespace cible échoue (`secrets is
+  forbidden`) ; la CI le refuse désormais.
 - **Gateway API plutôt qu'Ingress** : ingress-nginx est en fin de vie annoncée, Gateway API
   le remplace. Un listener HTTPS par nom exposé : le nom fixe le certificat émis.
 - **Policies ALZ dans le cluster** : Gatekeeper refuse tout conteneur sans

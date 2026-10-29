@@ -7,6 +7,11 @@ Kubernetes et ceux des CRD. Puis chaque HelmRelease est rendue avec helm templat
 conteneur doit déclarer allowPrivilegeEscalation: false sans privileged : c'est la règle
 que Gatekeeper (policies ALZ Deny-Priv-Esc-AKS / Deny-Privileged-AKS) appliquera au cluster.
 
+Les HelmRelease et HelmRepository doivent vivre dans flux-system : l'extension Flux d'AKS
+impose le multi-tenant, le helm-controller agit sous le compte flux-applier du namespace de
+la HelmRelease, et seul celui de flux-system a des droits (cluster-admin). Le chart est
+installé ailleurs via spec.targetNamespace.
+
 Outils attendus dans le PATH : kustomize, kubeconform, helm.
 """
 import re
@@ -83,6 +88,10 @@ def main():
         for doc in yaml.safe_load_all(built):
             if not doc:
                 continue
+            if doc["kind"] in ("HelmRepository", "HelmRelease") and \
+                    doc["metadata"].get("namespace") != "flux-system":
+                failures.append(f"{doc['kind']}/{doc['metadata']['name']} hors de flux-system "
+                                f"({doc['metadata'].get('namespace')}) : utiliser spec.targetNamespace")
             if doc["kind"] == "HelmRepository":
                 repositories[(doc["metadata"]["namespace"], doc["metadata"]["name"])] = doc["spec"]
             elif doc["kind"] == "HelmRelease":
@@ -90,10 +99,16 @@ def main():
         failures += [f"container: {b}" for b in check_containers(yaml.safe_load_all(built), level)]
 
     for rel in releases:
-        ns, name = rel["metadata"]["namespace"], rel["metadata"]["name"]
+        ns_rel, name = rel["metadata"]["namespace"], rel["metadata"]["name"]
+        ns = rel["spec"].get("targetNamespace", ns_rel)
+        release = rel["spec"].get("releaseName", name)
         chart = rel["spec"]["chart"]["spec"]
         ref = chart["sourceRef"]
-        repo = repositories[(ref.get("namespace", ns), ref["name"])]
+        repo = repositories.get((ref.get("namespace", ns_rel), ref["name"]))
+        if repo is None:
+            failures.append(f"HelmRelease {ns_rel}/{name} : HelmRepository "
+                            f"{ref.get('namespace', ns_rel)}/{ref['name']} introuvable")
+            continue
         if repo.get("type") == "oci":
             source = [f"{repo['url']}/{chart['chart']}"]
         else:
@@ -101,7 +116,7 @@ def main():
         with tempfile.NamedTemporaryFile("w", suffix=".yaml") as values:
             yaml.safe_dump(rel["spec"].get("values") or {}, values)
             values.flush()
-            rendered = run(["helm", "template", name, *source, "--version", chart["version"],
+            rendered = run(["helm", "template", release, *source, "--version", chart["version"],
                             "-n", ns, "-f", values.name])
         bad = check_containers(yaml.safe_load_all(rendered), f"{ns}/{name}")
         print(f"== HelmRelease {ns}/{name} ({chart['chart']} {chart['version']}): "
