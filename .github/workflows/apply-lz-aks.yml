@@ -8,6 +8,7 @@ on:
     branches: [main]
     paths:
       - "infra/lz-aks/**"
+      - "!infra/lz-aks/**/*.md" # la documentation seule ne déclenche pas d'apply
   workflow_dispatch:
 
 permissions:

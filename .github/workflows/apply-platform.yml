@@ -8,6 +8,7 @@ on:
     branches: [main]
     paths:
       - "infra/platform/**"
+      - "!infra/platform/**/*.md" # la documentation seule ne déclenche pas d'apply
   workflow_dispatch:
 
 permissions:
