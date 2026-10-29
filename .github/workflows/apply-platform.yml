@@ -1,0 +1,25 @@
+name: apply-platform
+
+# Une stack, un pipeline : seul un changement dans infra/platform déclenche cet apply, avec sa
+# propre approbation (environnement prd). Le job partagé porte les garde-fous communs.
+# Changement du seul workflow : pas d'apply automatique, lancement manuel si besoin.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "infra/platform/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  apply:
+    uses: ./.github/workflows/terraform-apply-reusable.yml
+    with:
+      roots: '["infra/platform"]'
+    secrets: inherit
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
