@@ -1,0 +1,56 @@
+name: ai-smoke
+
+# Preuve de bout en bout de la couche IA : un jeton GitHub OIDC est échangé contre un jeton
+# Entra, qui appelle le modèle déployé dans Foundry. Aucune clé d'API n'existe (clés locales
+# désactivées). L'identité ne peut qu'appeler le modèle ; la capacité du déploiement plafonne
+# la consommation.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # Nom de ressource, pas un secret (comme celui du Key Vault dans la documentation).
+  FOUNDRY_ENDPOINT: https://aif-azpl-prd-frc-001.openai.azure.com
+  DEPLOYMENT: gpt-5.4-mini
+
+jobs:
+  smoke:
+    runs-on: ubuntu-24.04
+    environment: lab # sujet ...:environment:lab attendu par l'identité ai-smoke
+    permissions:
+      id-token: write
+    steps:
+      - uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID_AI_SMOKE }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+
+      - name: appel du modèle
+        run: |
+          token=$(az account get-access-token --resource https://cognitiveservices.azure.com --query accessToken -o tsv)
+          echo "::add-mask::$token"
+          body=$(jq -n --arg model "$DEPLOYMENT" '{
+            model: $model,
+            max_completion_tokens: 200,
+            messages: [
+              {role: "system", content: "Tu réponds en une phrase, en français."},
+              {role: "user", content: "Quel modèle es-tu, et dans quelle zone de données es-tu servi ?"}
+            ]
+          }')
+          response=$(curl -sS --fail-with-body "$FOUNDRY_ENDPOINT/openai/v1/chat/completions" \
+            -H "Authorization: Bearer $token" -H "Content-Type: application/json" -d "$body")
+          answer=$(jq -r '.choices[0].message.content' <<< "$response")
+          usage=$(jq -c '.usage | {prompt_tokens, completion_tokens, total_tokens}' <<< "$response")
+          model=$(jq -r '.model' <<< "$response")
+          echo "$answer"
+          {
+            echo "### ai-smoke"
+            echo "- Déploiement : \`$DEPLOYMENT\` (modèle servi : \`$model\`)"
+            echo "- Authentification : OIDC GitHub → Entra ID, aucune clé"
+            echo "- Consommation : \`$usage\`"
+            echo
+            echo "> $answer"
+          } >> "$GITHUB_STEP_SUMMARY"
