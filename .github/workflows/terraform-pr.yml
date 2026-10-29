@@ -23,9 +23,43 @@ env:
   TF_INPUT: "false"
 
 jobs:
+  # Stacks à vérifier : celles dont le code change dans la PR (documentation exclue).
+  # Planifier une stack en aval dans la même PR n'apporterait rien : les outputs qu'elle
+  # lit n'existent qu'après l'apply de la stack modifiée. La configuration commune
+  # (.tflint.hcl, ce workflow) concerne toutes les stacks.
+  changes:
+    runs-on: ubuntu-24.04
+    outputs:
+      roots: ${{ steps.roots.outputs.roots }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: stacks modifiées
+        id: roots
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          changed=$(git diff --name-only "$BASE...$HEAD")
+          all=$(find infra -mindepth 2 -maxdepth 2 -name versions.tf -printf '%h\n' | sort)
+          if grep -qxE '\.tflint\.hcl|\.github/workflows/terraform-pr\.yml' <<< "$changed"; then
+            roots="$all"
+          else
+            roots=$(grep -E '^infra/[^/]+/' <<< "$changed" | grep -vE '\.md$' | cut -d/ -f1-2 | sort -u \
+              | grep -xF -f <(printf '%s\n' "$all") || true)
+          fi
+          json=$(printf '%s\n' "$roots" | jq -R . | jq -sc 'map(select(length > 0))')
+          echo "roots=$json" >> "$GITHUB_OUTPUT"
+          echo "Stacks vérifiées : $json" | tee -a "$GITHUB_STEP_SUMMARY"
+
   # Aucun accès Azure : tourne aussi sur les PR venant de forks.
   static:
     name: static (${{ matrix.root }})
+    needs: changes
+    if: needs.changes.outputs.roots != '[]'
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -33,7 +67,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        root: [infra/bootstrap, infra/landing-zone, infra/platform, infra/lz-aks, infra/aks, infra/ai]
+        root: ${{ fromJSON(needs.changes.outputs.roots) }}
     defaults:
       run:
         working-directory: ${{ matrix.root }}
@@ -92,8 +126,8 @@ jobs:
   # Jeton OIDC → identité plan (Reader). Les PR de forks n'obtiennent pas de jeton : job ignoré.
   plan:
     name: plan (${{ matrix.root }})
-    needs: static
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    needs: [changes, static]
+    if: github.event.pull_request.head.repo.full_name == github.repository && needs.changes.outputs.roots != '[]'
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -102,7 +136,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        root: [infra/bootstrap, infra/landing-zone, infra/platform, infra/lz-aks, infra/aks, infra/ai]
+        root: ${{ fromJSON(needs.changes.outputs.roots) }}
     defaults:
       run:
         working-directory: ${{ matrix.root }}
@@ -230,3 +264,22 @@ jobs:
             } else {
               await github.rest.issues.createComment({ owner, repo, issue_number, body });
             }
+
+  # Check unique à exiger dans la protection de main : son nom ne dépend pas des stacks
+  # touchées, contrairement aux jobs de la matrice. Échoue si une vérification a échoué ;
+  # une stack non modifiée (job sauté) n'est pas un échec.
+  result:
+    name: terraform-pr
+    needs: [changes, static, plan]
+    if: always()
+    runs-on: ubuntu-24.04
+    steps:
+      - name: verdict
+        env:
+          RESULTS: ${{ toJSON(needs.*.result) }}
+        run: |
+          echo "$RESULTS"
+          if jq -e 'any(.[]; . == "failure" or . == "cancelled")' <<< "$RESULTS" > /dev/null; then
+            echo "::error::une vérification a échoué"
+            exit 1
+          fi
