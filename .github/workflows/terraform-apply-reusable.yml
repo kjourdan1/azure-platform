@@ -1,7 +1,7 @@
 name: terraform-apply-reusable
 
-# Job d'apply partagé : terraform-apply (couches permanentes) et lab-up (cluster) l'appellent
-# avec leur liste de couches. Mêmes garde-fous partout : environnement prd protégé, plan
+# Job d'apply partagé : un workflow par stack (apply-<stack>, lab-up pour le cluster)
+# l'appelle avec sa couche. Mêmes garde-fous partout : environnement prd protégé, plan
 # recalculé puis appliqué tel quel.
 on:
   workflow_call:

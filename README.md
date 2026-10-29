@@ -59,7 +59,7 @@ Secrets, consumed by the application. No secret is ever committed, at any step.
 
 ```
 Pull request  → fmt → validate → tflint → checkov (code + plan) → plan commented on the PR
-Merge to main → apply of the permanent layers, protected environment, manual approval
+Merge to main → apply-<stack> for each changed permanent layer only, protected environment, manual approval
 lab-up        → manual, same approval, creates the cluster
 lab-down      → every night, deletes the cluster with a least-privilege identity
 ```
@@ -67,6 +67,11 @@ lab-down      → every night, deletes the cluster with a least-privilege identi
 - **No stored credentials in CI.** GitHub OIDC tokens are exchanged for Azure tokens. The
   federated subjects use GitHub's immutable owner and repository IDs, so a renamed or recreated
   repository cannot obtain them.
+- **One pipeline per stack.** Each permanent layer has its own `apply-<stack>` workflow,
+  triggered only by changes under `infra/<stack>`; they share one reusable job carrying the
+  guardrails. A merge no longer applies, and asks approval for, layers it did not touch. A PR
+  that changes two dependent layers is applied in dependency order by running the second
+  workflow after the first.
 - **Two identities.** `plan` is read-only and runs pull request code; `apply` only exists in the
   protected `prd` environment. The apply job refuses to run if that environment loses its
   required reviewer.

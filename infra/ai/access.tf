@@ -1,9 +1,12 @@
+data "azurerm_subscription" "current" {}
+
 # L'opérateur utilise le projet (portail Foundry, playground, agents) sans droit de gestion
-# sur le compte : la configuration passe par Terraform.
-resource "azurerm_role_assignment" "operator_ai_user" {
-  scope                = azurerm_cognitive_account.foundry.id
-  role_definition_name = "Azure AI User"
-  principal_id         = var.operator_object_id
+# sur le compte : la configuration passe par Terraform. Rôle « Foundry User » référencé par
+# son ID : Microsoft l'a renommé (anciennement « Azure AI User »), l'ID ne change pas.
+resource "azurerm_role_assignment" "operator_foundry_user" {
+  scope              = azurerm_cognitive_account.foundry.id
+  role_definition_id = "${data.azurerm_subscription.current.id}/providers/Microsoft.Authorization/roleDefinitions/53ca6127-db72-4b80-b1b0-d745d6d5456d"
+  principal_id       = var.operator_object_id
 }
 
 # Identité du workflow ai-smoke : appeler le modèle, rien d'autre. Fédérée à l'environnement

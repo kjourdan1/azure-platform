@@ -39,7 +39,7 @@ dans son propre resource group, créé et détruit à la demande ; ces ressource
   hébergés par GitHub : private endpoints prévus avec un runner self-hosted.
 
 ## Installation
-PR → plan commenté → merge → `terraform-apply` avec approbation.
+PR → plan commenté → merge → `apply-lz-aks` avec approbation.
 Puis copier `terraform output -raw lab_client_id` dans le secret `AZURE_CLIENT_ID_LAB` de
 l'environnement GitHub `lab` (branche `main` uniquement, sans reviewer).
 

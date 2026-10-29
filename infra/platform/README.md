@@ -20,4 +20,4 @@ state de la landing zone (subscription vending) : aucun ID dans le code.
 - Pas d'inspection du trafic est-ouest ni de sortie centralisée sans pare-feu.
 
 ## Installation
-PR → plan commenté → merge → `terraform-apply` avec approbation.
+PR → plan commenté → merge → `apply-platform` avec approbation.
