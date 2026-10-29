@@ -11,6 +11,7 @@ on:
       - "infra/landing-zone/**"
       - "infra/platform/**"
       - "infra/lz-aks/**"
+      - "infra/ai/**"
       - ".github/workflows/terraform-apply.yml"
       - ".github/workflows/terraform-apply-reusable.yml"
   workflow_dispatch:
@@ -22,7 +23,7 @@ jobs:
   apply:
     uses: ./.github/workflows/terraform-apply-reusable.yml
     with:
-      roots: '["infra/landing-zone", "infra/platform", "infra/lz-aks"]'
+      roots: '["infra/landing-zone", "infra/platform", "infra/lz-aks", "infra/ai"]'
     secrets: inherit
     permissions:
       contents: read

@@ -49,6 +49,7 @@ flowchart LR
 | AKS landing zone | `infra/lz-aks` | Spoke VNet peered to the hub, Key Vault, ACR, teardown identity, `lab.killianjourdan.com` DNS zone, controller identities (external-dns, External Secrets) | Permanent |
 | AKS | `infra/aks` | Cluster: OIDC + Workload Identity, Azure RBAC, CNI Overlay with Cilium, Azure Policy and KEDA add-ons, Flux extension, federated credentials | Created by `lab-up`, deleted nightly by `lab-down` |
 | GitOps | `gitops/` | What Flux reconciles, in three ordered levels: platform controllers, their configurations, hosted apps | Reapplied by Flux on every `lab-up` |
+| AI | `infra/ai` | Azure AI Foundry account and project, `gpt-5.4-mini` in the EU data zone, no API keys (Entra only), diagnostics to central Log Analytics | Permanent (no fixed cost) |
 
 The common thread is the path of a secret: Key Vault provisioned and governed by policy, read
 through Workload Identity with no stored credential, materialised in the cluster by External
@@ -106,7 +107,8 @@ lab-down      → every night, deletes the cluster with a least-privilege identi
 - [ ] Platform controllers: Gateway API (Envoy Gateway), cert-manager, external-dns, External Secrets, kube-prometheus-stack, Kyverno
 - [ ] Hosted app: AKS Store Demo, KEDA scaling on its order queue
 - [ ] Custom Helm chart
-- [ ] AI inference layer: KAITO on a spot GPU pool, DCGM metrics, MLflow, APIM AI gateway
+- [x] AI foundations: Azure AI Foundry with a pinned model deployment, keyless access, token usage logged; `ai-smoke` workflow proves it end to end
+- [ ] Enterprise AI assistant on top of it: RAG, MCP tools with the user's identity, guardrails, caching and routing, evals in CI
 - [ ] Drift detection and a daily sweep of billable resources
 
 ## Known limits

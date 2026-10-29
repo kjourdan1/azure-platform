@@ -33,7 +33,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        root: [infra/bootstrap, infra/landing-zone, infra/platform, infra/lz-aks, infra/aks]
+        root: [infra/bootstrap, infra/landing-zone, infra/platform, infra/lz-aks, infra/aks, infra/ai]
     defaults:
       run:
         working-directory: ${{ matrix.root }}
@@ -102,7 +102,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        root: [infra/bootstrap, infra/landing-zone, infra/platform, infra/lz-aks, infra/aks]
+        root: [infra/bootstrap, infra/landing-zone, infra/platform, infra/lz-aks, infra/aks, infra/ai]
     defaults:
       run:
         working-directory: ${{ matrix.root }}
