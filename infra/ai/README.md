@@ -15,6 +15,7 @@ Couche permanente dans la subscription `azpl-lz-aks`, resource group dédié :
 | Déploiement `gpt-5.4-mini` (Data Zone Standard, UE) | Modèle de conversation, version épinglée, plafonné à 10 000 tokens/minute |
 | Paramètre de diagnostic → Log Analytics central | Requêtes, audit, consommation de tokens |
 | Identité `ai-smoke` | Appeler le modèle depuis le workflow `ai-smoke`, rien d'autre |
+| Rôle *Foundry User* de l'opérateur | Utiliser le projet (portail, playground, agents) sans gérer le compte |
 
 ## Décisions et alternatives écartées
 - **Nouveau modèle Foundry (compte + projets) plutôt que le hub** : le hub exige Storage
@@ -31,6 +32,8 @@ Couche permanente dans la subscription `azpl-lz-aks`, resource group dédié :
   son plan. Retrait annoncé de `gpt-5.4-mini 2026-03-17` : 2027-09-21.
 - **Subscription partagée avec le cluster** : une subscription IA dédiée (vending) est la cible ;
   écartée pour l'instant car une subscription neuve repart sans quota de modèles.
+- **Rôles intégrés référencés par ID** quand leur nom bouge : « Azure AI User » est devenu
+  « Foundry User » ; un `role_definition_name` obsolète fait échouer l'apply.
 - **Policy `Enforce-GR-OpenAI` de la landing zone** : en `DoNotEnforce`, évaluée sans bloquer.
 
 ## Limites connues
@@ -43,7 +46,7 @@ Couche permanente dans la subscription `azpl-lz-aks`, resource group dédié :
 - **Chiffrement par clé Microsoft**, pas de clé client (CMK).
 
 ## Installation
-PR → plan commenté → merge → `terraform-apply` avec approbation.
+PR → plan commenté → merge → `apply-ai` avec approbation.
 Puis renseigner le secret `AZURE_CLIENT_ID_AI_SMOKE` de l'environnement GitHub `lab` avec le
 client ID de l'identité `id-azpl-ai-smoke-prd-frc-001` (identifiant, pas un secret : stocké en
 secret pour rester masqué dans les logs publics). Lecture sans Terraform :
