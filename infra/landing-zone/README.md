@@ -6,7 +6,7 @@ et policies de référence, appliquées par héritage à toute subscription plac
 
 ## Approche retenue
 Module Azure Verified Module `avm-ptn-alz` (architecture `alz`, bibliothèque ALZ figée en
-version), déployé sous le Tenant Root Group par le workflow `terraform-apply` après
+version), déployé sous le Tenant Root Group par le workflow `apply-landing-zone` après
 approbation dans l'environnement `prd`.
 
 ## Décisions et alternatives écartées
@@ -51,4 +51,4 @@ approbation dans l'environnement `prd`.
   Analytics, DCR) existera.
 
 ## Installation
-Pas d'apply local : PR → plan commenté → merge → `terraform-apply` avec approbation.
+Pas d'apply local : PR → plan commenté → merge → `apply-landing-zone` avec approbation.

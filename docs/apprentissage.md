@@ -83,3 +83,22 @@ commande lue, plan expliqué), pas seulement lu.
 - [ ] Limite Let's Encrypt de 5 certificats identiques par semaine, et quand passer sur staging
 - [ ] Risque de reprise de sous-domaine avec des enregistrements DNS orphelins
 - [ ] Pourquoi l'identité `plan` a besoin du Cluster User Role, et pourquoi ce rôle ne donne aucun accès aux objets du cluster
+
+## Session 5 — Fondations Azure AI Foundry
+
+### Le problème
+- [ ] Ce qu'une équipe plateforme livre avant toute application IA : identité, coût, résidence des données, traçabilité
+- [ ] Pourquoi une clé d'API Azure OpenAI dans une application est le défaut n°1 des projets IA
+
+### La solution
+- [ ] Compte Foundry (`AIServices`), projet, déploiement : qui porte quoi, et pourquoi les déploiements sont au niveau du compte
+- [ ] Global Standard, Data Zone Standard, Provisioned (PTU) : où les données sont traitées, comment c'est facturé
+- [ ] Capacité d'un déploiement (TPM) : un plafond, pas une réservation ; pourquoi ça borne la facture
+- [ ] Rôles : *Azure AI User* (utiliser le projet) vs *Cognitive Services OpenAI User* (appeler un modèle) vs Contributor (gérer la ressource)
+- [ ] La chaîne OIDC du workflow `ai-smoke` : jeton GitHub → Entra → jeton pour `cognitiveservices.azure.com` → appel du modèle
+- [ ] Quotas de modèles par subscription et par région (`az cognitiveservices usage list`) : même logique que les quotas de vCPU
+- [ ] Lire la consommation de tokens dans Log Analytics
+
+### Le contexte large
+- [ ] Ce qui manque pour un assistant d'entreprise : RAG, outils MCP avec l'identité de l'utilisateur, garde-fous, cache et routage, évals en CI
+- [ ] Private endpoint et zones DNS privées : ce que ça change, ce que ça coûte, pourquoi pas encore

@@ -23,9 +23,10 @@ locals {
   }
 
   # Resource providers nécessaires aux couches suivantes (réseau, AKS, ACR, Key Vault,
-  # observabilité), enregistrés au moment de la vente : les couches suivantes n'ont pas
+  # observabilité, IA), enregistrés au moment de la vente : les couches suivantes n'ont pas
   # à porter ce droit.
   resource_providers = {
+    "Microsoft.CognitiveServices"       = []
     "Microsoft.Consumption"             = []
     "Microsoft.ContainerRegistry"       = []
     "Microsoft.ContainerService"        = []
