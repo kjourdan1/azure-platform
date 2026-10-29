@@ -1,0 +1,31 @@
+# Implémentation Gateway API (remplaçant d'Ingress) : le contrôleur crée un déploiement
+# Envoy et un Service LoadBalancer par Gateway. Le chart installe aussi les CRD Gateway API,
+# dont cert-manager a besoin au démarrage.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: envoyproxy
+  namespace: envoy-gateway-system
+spec:
+  type: oci
+  url: oci://docker.io/envoyproxy
+  interval: 12h
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: envoy-gateway
+  namespace: envoy-gateway-system
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: gateway-helm
+      version: v1.9.3
+      sourceRef:
+        kind: HelmRepository
+        name: envoyproxy
+  install:
+    crds: CreateReplace
+  upgrade:
+    crds: CreateReplace

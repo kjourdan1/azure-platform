@@ -1,4 +1,5 @@
-# Niveau 3 : applications hébergées (AKS Store Demo en PR 3).
+# Niveau 3 : applications hébergées.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-resources: []
+resources:
+  - demo

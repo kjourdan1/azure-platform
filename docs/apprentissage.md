@@ -64,6 +64,26 @@ commande lue, plan expliqué), pas seulement lu.
 - [ ] Ce que coûte le D4as_v7 par heure, et pourquoi `lab-down` reste la vraie garantie de budget
 - [ ] Vérifier une convergence avec les outils : `kubectl get kustomizations -n flux-system`, `kubectl describe kustomization`, events
 
+## Session 4 — Entrée HTTPS et chemin d'un secret
+
+### Le problème
+- [ ] Pourquoi une IP qui change à chaque `lab-up` impose external-dns, et un certificat renouvelé impose cert-manager
+- [ ] Ce que Gatekeeper (policies ALZ) refuse dans le cluster, et pourquoi un chart « standard » peut être bloqué à l'admission
+
+### La solution
+- [ ] Gateway API : GatewayClass (qui implémente), Gateway (le point d'entrée, ses listeners), HTTPRoute (qui reçoit quoi) ; pourquoi c'est le successeur d'Ingress
+- [ ] HTTP-01 : Let's Encrypt appelle `http://hello.lab…/.well-known/acme-challenge/…` ; pourquoi la route de redirection HTTPS ne l'intercepte pas (priorité de la route la plus spécifique)
+- [ ] Pourquoi cert-manager dépend d'Envoy Gateway (`dependsOn` d'une HelmRelease vs `depends_on` d'une Kustomization)
+- [ ] Workload Identity côté pod : annotation `client-id` sur le compte de service, label `azure.workload.identity/use`, jeton projeté, credential fédéré qui fait la correspondance
+- [ ] Le chemin d'un secret : générateur → PushSecret → Key Vault → ExternalSecret → Secret → variable d'environnement ; pourquoi l'application lit le Secret relu depuis Key Vault et pas la graine
+- [ ] Policies Key Vault en Deny : `contentType` et validité ≤ 90 jours ; d'où vient `${SECRET_EXPIRES_AT}` et pourquoi `time_rotating` plutôt qu'un horodatage
+- [ ] `policy: sync` et registre TXT d'external-dns : ce qu'il a le droit de supprimer
+
+### Le contexte large
+- [ ] Limite Let's Encrypt de 5 certificats identiques par semaine, et quand passer sur staging
+- [ ] Risque de reprise de sous-domaine avec des enregistrements DNS orphelins
+- [ ] Pourquoi l'identité `plan` a besoin du Cluster User Role, et pourquoi ce rôle ne donne aucun accès aux objets du cluster
+
 ## Session 5 — Fondations Azure AI Foundry
 
 ### Le problème

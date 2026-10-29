@@ -9,6 +9,7 @@ on:
       - "gitops/**"
       - "charts/**"
       - "scripts/check-substitutions.sh"
+      - "scripts/validate-gitops.py"
       - "infra/aks/locals.tf"
       - ".github/workflows/gitops-pr.yml"
 
@@ -24,6 +25,8 @@ env:
   KUSTOMIZE_SHA256: "ea375e7372f9aa029129d4b2d16c66b7750b7f1213c4f66f910d981c895818d8"
   KUBECONFORM_VERSION: "0.7.0"
   KUBECONFORM_SHA256: "c31518ddd122663b3f3aa874cfe8178cb0988de944f29c74a0b9260920d115d3"
+  HELM_VERSION: "3.19.0"
+  HELM_SHA256: "a7f81ce08007091b86d8bd696eb4d86b8d0f2e1b9f6c714be62f82f96a594496"
 
 jobs:
   validate:
@@ -38,24 +41,25 @@ jobs:
         run: ./scripts/check-substitutions.sh
 
       # Binaires épinglés et vérifiés par empreinte, comme les actions par SHA.
-      - name: kustomize et kubeconform
+      - name: kustomize, kubeconform et helm
         run: |
           mkdir -p "$RUNNER_TEMP/bin"
           cd "$RUNNER_TEMP"
           curl -fsSLo kustomize.tgz "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_linux_amd64.tar.gz"
           curl -fsSLo kubeconform.tgz "https://github.com/yannh/kubeconform/releases/download/v${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz"
+          curl -fsSLo helm.tgz "https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz"
           echo "${KUSTOMIZE_SHA256}  kustomize.tgz" | sha256sum -c -
           echo "${KUBECONFORM_SHA256}  kubeconform.tgz" | sha256sum -c -
+          echo "${HELM_SHA256}  helm.tgz" | sha256sum -c -
           tar -xzf kustomize.tgz -C bin kustomize
           tar -xzf kubeconform.tgz -C bin kubeconform
+          tar -xzf helm.tgz -C bin --strip-components=1 linux-amd64/helm
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
 
-      # Un build par niveau Flux, dans l'ordre de réconciliation. Les CRD des contrôleurs
-      # (HelmRelease, ClusterIssuer…) n'ont pas encore de schéma : ignorées jusqu'à la PR 2.
-      - name: kustomize build | kubeconform
+      # Par niveau Flux : build, substitution par des valeurs d'exemple, kubeconform avec
+      # les schémas des CRD ; puis rendu de chaque HelmRelease et règle Gatekeeper
+      # (allowPrivilegeEscalation: false) sur chaque conteneur. Détail : le script.
+      - name: validation des manifests et des charts
         run: |
-          for dir in gitops/infrastructure/controllers gitops/infrastructure/configs gitops/apps; do
-            echo "::group::$dir"
-            kustomize build "$dir" | kubeconform -strict -summary -ignore-missing-schemas
-            echo "::endgroup::"
-          done
+          python3 -c "import yaml" 2>/dev/null || sudo apt-get install -y -qq python3-yaml
+          python3 scripts/validate-gitops.py

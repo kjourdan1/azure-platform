@@ -109,7 +109,8 @@ lab-down      → every night, deletes the cluster with a least-privilege identi
 - [x] Bootstrap, landing zone, platform, AKS landing zone deployed
 - [x] Cluster layer, `lab-up` and `lab-down` in place
 - [x] GitOps foundation: Flux extension, three ordered levels, manifest validation on PRs
-- [ ] Platform controllers: Gateway API (Envoy Gateway), cert-manager, external-dns, External Secrets, kube-prometheus-stack, Kyverno
+- [x] Ingress and secrets: Gateway API (Envoy Gateway), cert-manager, external-dns, External Secrets; demo page whose content round-trips through Key Vault
+- [ ] Observability and governance: kube-prometheus-stack, Kyverno
 - [ ] Hosted app: AKS Store Demo, KEDA scaling on its order queue
 - [ ] Custom Helm chart
 - [x] AI foundations: Azure AI Foundry with a pinned model deployment, keyless access, token usage logged; `ai-smoke` workflow proves it end to end

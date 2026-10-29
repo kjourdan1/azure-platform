@@ -1,0 +1,32 @@
+# Key Vault → Secrets Kubernetes. Le compte de service porte le client ID de l'identité
+# managée (lz-aks) ; le label des pods déclenche l'injection du jeton Workload Identity.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: external-secrets
+  namespace: external-secrets
+spec:
+  url: https://charts.external-secrets.io
+  interval: 12h
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: external-secrets
+  namespace: external-secrets
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: external-secrets
+      version: 2.14.0
+      sourceRef:
+        kind: HelmRepository
+        name: external-secrets
+  values:
+    serviceAccount:
+      name: external-secrets # sujet du credential fédéré : external-secrets:external-secrets
+      annotations:
+        azure.workload.identity/client-id: ${ESO_CLIENT_ID}
+    podLabels:
+      azure.workload.identity/use: "true"
