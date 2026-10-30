@@ -10,7 +10,7 @@ intégrant l'existant, sans recréer ni interrompre ce qui tourne.
 |---|---|
 | Subscription `LAB` hors hiérarchie | Rattachée au Tenant Root Group : aucune policy ALZ, seule l'initiative par défaut de Defender |
 | Contenu mixte | Socle Terraform (state, identités CI : gérés par `infra/bootstrap`) **et** une charge de travail en production : `rg-portfolio` / Static Web App `portfolio-kj`, servant `www.killianjourdan.com`, créée hors code, sans aucun tag |
-| Defender for Cloud | Plans `Discovery` et `FoundationalCspm` au niveau payant, activés hors code (0,64 € en octobre) |
+| Defender for Cloud | Plan Defender CSPM (`CloudPosture`) activé hors code, facturé 0,64 € en octobre, puis désactivé à la main le 26 |
 | Dérive du bootstrap | Budget global, alerte d'anomalie de coût, gestion GitHub et rôles `apply_subscription` présents dans le code mais jamais appliqués |
 | Hiérarchie ALZ | `management`, `connectivity`, `identity` vides ; `azpl-platform` rattachée directement à `platform` |
 
@@ -25,7 +25,7 @@ deviendrait non conforme et toute modification du site serait refusée.
 | `LAB` | management group `management` | Ne porte que le plan de gestion (state, identités CI) |
 | Portfolio | subscription `azpl-lz-web`, management group `online` | Charge de travail publique : une landing zone, pas la subscription du state |
 | Static Web App | importée dans Terraform (`infra/lz-web`), taguée | Plus aucune ressource hors code |
-| Defender `Discovery` | désactivé en code | Non exploité : décision FinOps documentée |
+| Defender CSPM | niveau gratuit fixé en code | Non exploité : décision FinOps documentée, toute réactivation devient une dérive visible |
 | Bootstrap | code aligné sur la réalité, budget et alerte d'anomalie appliqués | Fin de la dérive |
 
 ## Principes
@@ -49,7 +49,7 @@ deviendrait non conforme et toute modification du site serait refusée.
 | 5 | Déplacement de la Static Web App | Opérateur | Contrôles ci-dessous tous verts | Déplacement inverse vers `rg-portfolio` |
 | 6 | Import de la Static Web App et de son domaine dans `infra/lz-web` (PR B4) | CI | Plan : import, aucune recréation ; seuls les tags changent | Retrait des blocs `import` |
 | 7 | **Revue des droits** : retirer à l'identité `apply` l'Owner implicite sur les management groups | Opérateur (Cloud Shell) | Plus aucun Owner de `apply` sur un management group ; Owner conservé sur ses subscriptions | Réattribuer Owner sur les management groups |
-| 8 | Bootstrap (PR B5) : `LAB` rattachée à `management` et renommée `azpl-management`, `Discovery` désactivé, budget global, alerte d'anomalie, code aligné sur la réalité | Opérateur (Cloud Shell) | Plan complet `5 to add, 0 to change, 0 to destroy`, puis « No changes » ; `apply` sans aucun rôle hérité sur la subscription du state | Revert, apply ; rattachement inverse |
+| 8 | Bootstrap (PR B5) : `LAB` rattachée à `management` et renommée `azpl-management`, Defender CSPM fixé au niveau gratuit, budget global, alerte d'anomalie, code aligné sur la réalité | Opérateur (Cloud Shell) | Plan complet `5 to add, 0 to change, 0 to destroy`, puis « No changes » ; `apply` sans aucun rôle hérité sur la subscription du state | Revert, apply ; rattachement inverse |
 | 9 | Clôture : inventaire de fin, suppression de `rg-portfolio` vide | Opérateur | Zéro ressource hors code | — |
 
 ### Étape 4 : déplacement à blanc
@@ -107,11 +107,21 @@ subscriptions qu'elle a créées. Elles sont retirées avant le rattachement :
 ```bash
 P=$(az identity show -g rg-azpl-identity-prd-frc-001 -n id-azpl-apply-prd-frc-001 \
   --subscription <id LAB> --query principalId -o tsv)
+OWNER=8e3af657-a8ff-443c-a75c-2fe8c4bcb635
 for mg in alz platform management connectivity identity security landingzones online corp local sandbox decommissioned; do
-  az role assignment delete --assignee-object-id "$P" --assignee-principal-type ServicePrincipal \
-    --role Owner --scope "/providers/Microsoft.Management/managementGroups/$mg"
+  for id in $(az rest --method get \
+      --url "https://management.azure.com/providers/Microsoft.Management/managementGroups/$mg/providers/Microsoft.Authorization/roleAssignments?api-version=2022-04-01&\$filter=assignedTo('$P')" \
+      --query "value[?properties.scope=='/providers/Microsoft.Management/managementGroups/$mg' && ends_with(properties.roleDefinitionId, '$OWNER')].id" -o tsv); do
+    az role assignment delete --ids "$id"
+  done
 done
 ```
+
+`az role assignment list --assignee <id> --all` ne remonte ni les attributions directes sur
+les management groups ni l'Owner obtenu par création d'alias : le listing paraît propre alors
+que les droits existent. On liste et on supprime par l'API REST (`$filter=assignedTo(...)` à
+chaque scope). Les suppressions mettent quelques secondes à se propager : une vérification
+immédiate peut encore les montrer.
 
 Reste ouvert : User Access Administrator à la racine permet encore à `apply` de s'attribuer un
 rôle. Cible : Role Based Access Control Administrator avec une condition ABAC qui limite les
