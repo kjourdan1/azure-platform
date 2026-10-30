@@ -109,7 +109,7 @@ référence de l'étape 0.
 | 3. RG d'accueil | 2026-10-30 | Plan `1 to add` ; `Microsoft.Web` enregistré |
 | 4. Déplacement à blanc | 2026-10-30 | `validateMoveResources` : `{}`, aucun obstacle |
 | 5. Déplacement | 2026-10-30 | Nom d'hôte, SKU, région, `www` (`Ready`, HTTP 200) identiques avant et après ; apex `Failed` avant comme après (préexistant) |
-| 6. Import | 2026-10-30 | Plan `2 to import, 1 to add, 0 to change, 0 to destroy` : site et domaine `www` importés sans écart, tags posés par l'API Tags |
+| 6. Import | 2026-10-30 | Plan `2 to import, 1 to add, 0 to change, 0 to destroy`. Imports réussis ; la pose des tags échoue (`Resource already exists` : `tags/default` existe toujours). Corrigé par `azapi_update_resource` ; plan suivant `1 to add, 0 to change`, imports sans écart |
 
 ## Leçons à reporter en mission
 
@@ -120,6 +120,8 @@ référence de l'étape 0.
 - `import` déclaratif et plan relu en PR : la preuve qu'une reprise ne recrée rien.
 - Importer sans tout réécrire : un provider qui envoie le corps complet (azapi) supprime ce
   qu'on ne déclare pas. Reproduire l'existant, puis mettre en conformité par l'API Tags.
+- L'API Tags d'ARM expose une sous-ressource `tags/default` qui existe toujours : on la met à
+  jour (`azapi_update_resource`), on ne la crée pas.
 - Un provider qui lit des secrets au refresh (clé de déploiement d'une Static Web App avec
   azurerm) impose de donner ce droit au plan des PR : en choisir un autre plutôt que d'élargir.
 - Les droits d'une identité de CI peuvent venir d'ailleurs que du code qui les déclare : ici,
