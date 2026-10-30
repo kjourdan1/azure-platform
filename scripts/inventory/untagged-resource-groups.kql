@@ -1,0 +1,11 @@
+// Resource groups sans les tags de répartition des coûts exigés par la landing zone
+// (owner, cost-center) : ce que les policies Deny bloqueront après rattachement.
+resourcecontainers
+| where type == "microsoft.resources/subscriptions/resourcegroups"
+| extend owner = tostring(tags["owner"]), costCenter = tostring(tags["cost-center"])
+| where isempty(owner) or isempty(costCenter)
+| join kind=leftouter (resourcecontainers
+    | where type == "microsoft.resources/subscriptions"
+    | project subscriptionId, subscription = name) on subscriptionId
+| project subscription, resourceGroup = name, location, owner, costCenter
+| order by subscription asc, resourceGroup asc

@@ -1,0 +1,10 @@
+// Ressources que Terraform ne déclare pas gérer (tag managed-by absent ou différent),
+// hors ressources créées par Azure pour le compte d'un service (resource groups MC_, NetworkWatcher).
+resources
+| where tostring(tags["managed-by"]) != "terraform"
+| where resourceGroup !startswith "mc_" and resourceGroup !~ "networkwatcherrg"
+| join kind=leftouter (resourcecontainers
+    | where type == "microsoft.resources/subscriptions"
+    | project subscriptionId, subscription = name) on subscriptionId
+| project subscription, resourceGroup, type, name, location
+| order by subscription asc, resourceGroup asc, type asc

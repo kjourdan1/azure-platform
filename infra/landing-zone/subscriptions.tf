@@ -47,15 +47,44 @@ locals {
   }
 }
 
-# Alias de création retiré du state sans appel à Azure : Azure exige le droit
-# Microsoft.Subscription/aliases/write pour simplement lire un alias, ce que l'identité
-# de plan des PR n'a pas. La subscription reste : un alias n'est que le nom de la demande
-# de création. Pas de destruction non plus : le droit de supprimer un alias n'est pas acquis.
-removed {
-  from = azapi_resource.subscription_alias
+# Création d'une subscription : l'alias ne vit que le temps de la création. Lire un alias
+# exige Microsoft.Subscription/aliases/write, que l'identité de plan des PR n'a pas : une
+# fois la subscription créée, la PR suivante retire l'alias du state par un bloc removed
+# (sans destruction) et ajoute la subscription à local.subscriptions.
+locals {
+  subscriptions_to_create = {
+    # Reprise brownfield (docs/runbooks/brownfield-lab.md) : accueille le portfolio,
+    # charge de travail publique sortie de la subscription du state.
+    lz_web = {
+      alias_name       = "azpl-lz-web"
+      management_group = "online"
+    }
+  }
+}
+
+resource "azapi_resource" "subscription_alias" {
+  for_each = local.subscriptions_to_create
+
+  type      = "Microsoft.Subscription/aliases@2021-10-01"
+  name      = each.value.alias_name
+  parent_id = "/"
+
+  body = {
+    properties = {
+      displayName  = each.value.alias_name
+      workload     = "Production"
+      billingScope = var.subscription_billing_scope
+      additionalProperties = {
+        managementGroupId = "/providers/Microsoft.Management/managementGroups/${each.value.management_group}"
+        tags              = local.subscription_tags
+      }
+    }
+  }
+
+  response_export_values = ["properties.subscriptionId"]
 
   lifecycle {
-    destroy = false
+    ignore_changes = [body, name]
   }
 }
 
