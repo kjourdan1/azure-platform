@@ -99,6 +99,18 @@ les confronter aux ressources restantes de `LAB` (state et identités, tous tagu
 Après : `az policy state trigger-scan --subscription <id LAB>` puis comparaison avec l'état de
 référence de l'étape 0.
 
+## Journal d'exécution
+
+| Étape | Date | Résultat |
+|---|---|---|
+| 0. Inventaire | 2026-10-30 | `LAB` sous Tenant Root Group ; 1 resource group sans tags (`rg-portfolio`), 1 ressource hors code (`portfolio-kj`, West Europe) |
+| 1. `azpl-lz-web` créée | 2026-10-30 | Plan `1 to add` ; subscription active sous `online` |
+| 2. Gouvernance | 2026-10-30 | Plan `19 to add, 0 to destroy`, alias oublié sans destruction ; un plantage passager du provider `alz` en CI, non reproduit en local, relancé une fois |
+| 3. RG d'accueil | 2026-10-30 | Plan `1 to add` ; `Microsoft.Web` enregistré |
+| 4. Déplacement à blanc | 2026-10-30 | `validateMoveResources` : `{}`, aucun obstacle |
+| 5. Déplacement | 2026-10-30 | Nom d'hôte, SKU, région, `www` (`Ready`, HTTP 200) identiques avant et après ; apex `Failed` avant comme après (préexistant) |
+| 6. Import | 2026-10-30 | Plan `2 to import, 1 to add, 0 to change, 0 to destroy` : site et domaine `www` importés sans écart, tags posés par l'API Tags |
+
 ## Leçons à reporter en mission
 
 - Une subscription « isolée » mélange presque toujours socle et charge de travail : séparer
@@ -106,6 +118,10 @@ référence de l'étape 0.
 - Un rattachement de management group est une action instantanée et lourde : il se prépare
   comme une mise en production (inventaire, conformité, retour arrière).
 - `import` déclaratif et plan relu en PR : la preuve qu'une reprise ne recrée rien.
+- Importer sans tout réécrire : un provider qui envoie le corps complet (azapi) supprime ce
+  qu'on ne déclare pas. Reproduire l'existant, puis mettre en conformité par l'API Tags.
+- Un provider qui lit des secrets au refresh (clé de déploiement d'une Static Web App avec
+  azurerm) impose de donner ce droit au plan des PR : en choisir un autre plutôt que d'élargir.
 - Les droits d'une identité de CI peuvent venir d'ailleurs que du code qui les déclare : ici,
   `apply` est Owner des subscriptions qu'elle a créées par alias. L'inventaire des droits
   fait partie de la reprise.
