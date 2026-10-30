@@ -41,9 +41,3 @@ variable "anomaly_alert_start_date" {
   type        = string
   default     = "2026-11-01T00:00:00Z"
 }
-
-variable "subscription_billing_scope" {
-  description = "Billing scope MCA (invoice section) pour la création des subscriptions par alias."
-  type        = string
-  sensitive   = true
-}
