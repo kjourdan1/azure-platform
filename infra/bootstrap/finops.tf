@@ -11,7 +11,7 @@ locals {
   }
 }
 
-# Budget global, LAB comprise : Cost Management ne supporte pas les management groups
+# Budget global, subscription du state comprise : Cost Management ne supporte pas les management groups
 # pour un contrat MCA, le profil de facturation est le seul scope qui couvre tout. Il vit
 # dans le bootstrap car il exige un rôle de facturation que la CI n'a pas.
 # Le plan des PR doit pouvoir le relire : l'identité plan reçoit « Billing profile reader »
@@ -43,23 +43,24 @@ resource "azapi_resource" "global_budget" {
   }
 }
 
-# LAB est hors de la hiérarchie ALZ : son alerte d'anomalie se déclare ici.
+# La subscription du state est gérée par le bootstrap, pas par le vending de landing-zone :
+# son alerte d'anomalie se déclare ici.
 resource "azapi_resource" "lab_anomaly_alert" {
   type      = "Microsoft.CostManagement/scheduledActions@2023-11-01"
-  name      = "anomaly-${local.project}-lab"
+  name      = "anomaly-${local.project}-management"
   parent_id = data.azurerm_subscription.current.id
 
   body = {
     kind = "InsightAlert"
     properties = {
-      displayName = "Cost anomaly LAB"
+      displayName = "Cost anomaly management"
       status      = "Enabled"
       # Champ exigé par l'API en plus de notification.to (erreur 400 sinon).
       notificationEmail = var.budget_alert_email
       viewId            = "${data.azurerm_subscription.current.id}/providers/Microsoft.CostManagement/views/ms:DailyAnomalyByResourceGroup"
       notification = {
         to      = [var.budget_alert_email]
-        subject = "Cost anomaly LAB"
+        subject = "Cost anomaly management"
       }
       schedule = {
         frequency = "Daily"

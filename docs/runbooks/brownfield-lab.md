@@ -48,8 +48,8 @@ deviendrait non conforme et toute modification du site serait refusée.
 | 4 | Déplacement à blanc (`validateMoveResources`) | Opérateur | Réponse sans erreur | — |
 | 5 | Déplacement de la Static Web App | Opérateur | Contrôles ci-dessous tous verts | Déplacement inverse vers `rg-portfolio` |
 | 6 | Import de la Static Web App et de son domaine dans `infra/lz-web` (PR B4) | CI | Plan : import, aucune recréation ; seuls les tags changent | Retrait des blocs `import` |
-| 7 | Rattacher `LAB` à `management` (PR B5) | CI | Conformité de `LAB` inchangée après scan | Rattachement inverse |
-| 8 | Réconcilier le bootstrap : `Discovery` désactivé, budget global, alerte d'anomalie, code aligné (PR B6) | Opérateur (Cloud Shell) | Plan relu sans destruction, puis « No changes » | Revert, apply |
+| 7 | **Revue des droits** : retirer à l'identité `apply` l'Owner implicite sur les management groups | Opérateur (Cloud Shell) | Plus aucun Owner de `apply` sur un management group ; Owner conservé sur ses subscriptions | Réattribuer Owner sur les management groups |
+| 8 | Bootstrap (PR B5) : `LAB` rattachée à `management` et renommée `azpl-management`, `Discovery` désactivé, budget global, alerte d'anomalie, code aligné sur la réalité | Opérateur (Cloud Shell) | Plan complet `5 to add, 0 to change, 0 to destroy`, puis « No changes » ; `apply` sans aucun rôle hérité sur la subscription du state | Revert, apply ; rattachement inverse |
 | 9 | Clôture : inventaire de fin, suppression de `rg-portfolio` vide | Opérateur | Zéro ressource hors code | — |
 
 ### Étape 4 : déplacement à blanc
@@ -92,7 +92,32 @@ contrôle de cette étape. En cas d'échec, déplacement inverse vers `rg-portfo
 
 Les attributions de rôles ne suivent pas une ressource déplacée : aucune n'existe sur ce site.
 
-### Étape 7 : rattacher LAB
+### Étape 7 : revue des droits avant de rattacher la subscription du state
+
+L'inventaire des droits de l'identité `apply` a révélé un **Owner direct sur les 12
+management groups** de la hiérarchie ALZ, absent de tout code : Azure attribue Owner au
+créateur d'un management group, et c'est `apply` qui a créé la hiérarchie. Rattacher la
+subscription du state à `management` l'en aurait rendue Owner par héritage, à rebours de la
+séparation des droits (la CI n'écrit jamais dans le state).
+
+Ces attributions ne servent à rien : `apply` agit par Management Group Contributor, Resource
+Policy Contributor et User Access Administrator à la racine, et par Owner sur les
+subscriptions qu'elle a créées. Elles sont retirées avant le rattachement :
+
+```bash
+P=$(az identity show -g rg-azpl-identity-prd-frc-001 -n id-azpl-apply-prd-frc-001 \
+  --subscription <id LAB> --query principalId -o tsv)
+for mg in alz platform management connectivity identity security landingzones online corp local sandbox decommissioned; do
+  az role assignment delete --assignee-object-id "$P" --assignee-principal-type ServicePrincipal \
+    --role Owner --scope "/providers/Microsoft.Management/managementGroups/$mg"
+done
+```
+
+Reste ouvert : User Access Administrator à la racine permet encore à `apply` de s'attribuer un
+rôle. Cible : Role Based Access Control Administrator avec une condition ABAC qui limite les
+rôles et les principaux qu'elle peut attribuer.
+
+### Étape 8 : rattacher la subscription du state
 
 Avant : lister les affectations `Deny` héritées par `management` (depuis `alz` et `platform`) et
 les confronter aux ressources restantes de `LAB` (state et identités, tous tagués).

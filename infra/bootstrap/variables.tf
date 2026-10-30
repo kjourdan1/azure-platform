@@ -31,15 +31,15 @@ variable "operator_object_id" {
 }
 
 variable "platform_subscription_ids" {
-  description = "Subscriptions où l'identité apply déploie des ressources. Jamais celle du state."
+  description = "Subscriptions de la plateforme (hors celle du state), où l'identité plan lit les clusters AKS."
   type        = list(string)
   default     = []
 }
 
 variable "manage_github" {
-  description = "Gère l'environnement et les variables GitHub. false si l'API GitHub n'est pas joignable avec des droits admin."
+  description = "Gère l'environnement et les secrets GitHub. false par défaut : ils sont gérés à la main (le bootstrap n'a jamais été appliqué avec true) ; true exige un jeton GitHub administrateur du dépôt."
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "github_owner" {
@@ -111,7 +111,7 @@ variable "budget_end_date" {
 }
 
 variable "anomaly_alert_start_date" {
-  description = "Début de l'alerte d'anomalie de coût de LAB, format RFC 3339."
+  description = "Début de l'alerte d'anomalie de coût de la subscription du state, format RFC 3339."
   type        = string
   default     = "2026-11-01T00:00:00Z"
 }

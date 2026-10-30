@@ -75,17 +75,9 @@ resource "azurerm_role_assignment" "ci_root" {
   principal_type       = "ServicePrincipal"
 }
 
-# apply déploie aussi des ressources (Log Analytics, hub réseau) : Contributor
-# uniquement sur les subscriptions plateforme listées, jamais sur celle du state
-# (LAB, qui héberge aussi des ressources hors plateforme).
-resource "azurerm_role_assignment" "apply_subscription" {
-  for_each = toset(var.platform_subscription_ids)
-
-  scope                = "/subscriptions/${each.value}"
-  role_definition_name = "Contributor"
-  principal_id         = azurerm_user_assigned_identity.ci["apply"].principal_id
-  principal_type       = "ServicePrincipal"
-}
+# apply n'a pas de rôle déclaré sur les subscriptions qu'elle déploie : elle en est Owner
+# parce qu'elle les a créées par alias (landing-zone). Un Contributor ajouté ici serait
+# redondant ; il n'a d'ailleurs jamais été appliqué (reprise brownfield, revue des droits).
 
 # Rafraîchir un cluster AKS appelle listClusterUserCredential, que Reader n'inclut pas :
 # sans ce rôle, le plan de infra/aks échoue dès que le cluster tourne. Il ne donne qu'un
