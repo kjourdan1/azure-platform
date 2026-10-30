@@ -51,10 +51,11 @@ resource "azapi_resource" "portfolio" {
 
 # Tags posés par l'API Tags d'ARM : seule la propriété tags change, la ressource n'est pas
 # réécrite. La manière la plus sûre de mettre en conformité une ressource reprise.
-resource "azapi_resource" "portfolio_tags" {
-  type      = "Microsoft.Resources/tags@2021-04-01"
-  name      = "default"
-  parent_id = azapi_resource.portfolio.id
+# azapi_update_resource et non azapi_resource : la sous-ressource tags/default existe
+# toujours (vide ou non), on la met à jour, on ne la crée pas.
+resource "azapi_update_resource" "portfolio_tags" {
+  type        = "Microsoft.Resources/tags@2021-04-01"
+  resource_id = "${azapi_resource.portfolio.id}/providers/Microsoft.Resources/tags/default"
   body = {
     properties = {
       tags = local.tags
