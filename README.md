@@ -158,6 +158,7 @@ lab-down      → every night, deletes the cluster with a least-privilege identi
 - [ ] Custom Helm chart
 - [x] AI foundations: Azure AI Foundry with a pinned model deployment, keyless access, token usage logged; `ai-smoke` workflow proves it end to end
 - [ ] Enterprise AI assistant on top of it: RAG, MCP tools with the user's identity, guardrails, caching and routing, evals in CI
+- [ ] Brownfield takeover of the standalone `LAB` subscription into the landing zone: inventory, a new `online` subscription for the portfolio, move, Terraform import, `LAB` under `management` ([runbook](docs/runbooks/brownfield-lab.md))
 - [ ] Drift detection and a daily sweep of billable resources
 
 ## Known limits

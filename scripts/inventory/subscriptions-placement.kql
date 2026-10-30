@@ -1,0 +1,10 @@
+// Rattachement de chaque subscription dans la hiérarchie de management groups
+// (chemin du parent direct jusqu'à la racine).
+resourcecontainers
+| where type == "microsoft.resources/subscriptions"
+| extend state = tostring(properties.state),
+         managementGroup = tostring(properties.managementGroupAncestorsChain[0].displayName)
+| mv-expand mg = properties.managementGroupAncestorsChain
+| summarize path = make_list(tostring(mg.displayName)) by subscription = name, state, managementGroup
+| extend path = strcat_array(path, " < ")
+| order by subscription asc
