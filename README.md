@@ -58,6 +58,7 @@ flowchart LR
 | AKS | `infra/aks` | Cluster: OIDC + Workload Identity, Azure RBAC, CNI Overlay with Cilium, Azure Policy and KEDA add-ons, Flux extension, federated credentials | Created by `lab-up`, deleted nightly by `lab-down` |
 | GitOps | `gitops/` | What Flux reconciles, in three ordered levels: platform controllers, their configurations, hosted apps | Reapplied by Flux on every `lab-up` |
 | AI | `infra/ai` | Azure AI Foundry account and project, `gpt-5.4-mini` in the EU data zone, no API keys (Entra only), diagnostics to central Log Analytics | Permanent (no fixed cost) |
+| Web landing zone | `infra/lz-web` | Subscription `azpl-lz-web` under `online`, landing the portfolio site taken over from the standalone `LAB` subscription (brownfield runbook) | Permanent |
 
 The common thread is the path of a secret: Key Vault provisioned and governed by policy, read
 through Workload Identity with no stored credential, materialised in the cluster by External
