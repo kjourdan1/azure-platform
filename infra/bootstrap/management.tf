@@ -26,11 +26,13 @@ resource "azapi_resource_action" "rename" {
   }
 }
 
-# Defender Discovery, activé hors code et non exploité : retour au niveau gratuit. La
-# ressource de tarification existe toujours, on la met à jour.
-resource "azapi_update_resource" "defender_discovery" {
+# Defender CSPM (plan CloudPosture), seul plan Defender facturé sur cette subscription
+# (0,64 € en octobre, désactivé à la main le 26) : le niveau gratuit est fixé en code pour
+# qu'une réactivation hors code apparaisse en dérive. Discovery et FoundationalCspm sont des
+# plans de base gratuits que l'API n'accepte qu'en Standard : on ne les gère pas.
+resource "azapi_update_resource" "defender_cspm" {
   type        = "Microsoft.Security/pricings@2024-01-01"
-  resource_id = "${data.azurerm_subscription.current.id}/providers/Microsoft.Security/pricings/Discovery"
+  resource_id = "${data.azurerm_subscription.current.id}/providers/Microsoft.Security/pricings/CloudPosture"
   body = {
     properties = {
       pricingTier = "Free"
