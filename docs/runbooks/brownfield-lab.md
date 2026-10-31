@@ -156,6 +156,9 @@ lui, le plan proposait de détruire les rôles AKS de l'identité `plan`.
 | 4. Déplacement à blanc | 2026-10-30 | `validateMoveResources` : `{}`, aucun obstacle |
 | 5. Déplacement | 2026-10-30 | Nom d'hôte, SKU, région, `www` (`Ready`, HTTP 200) identiques avant et après ; apex `Failed` avant comme après (préexistant) |
 | 6. Import | 2026-10-30 | Plan `2 to import, 1 to add, 0 to change, 0 to destroy`. Imports réussis ; la pose des tags échoue (`Resource already exists` : `tags/default` existe toujours). Corrigé par `azapi_update_resource` ; plan suivant `1 to add, 0 to change`, imports sans écart |
+| 7. Revue des droits | 2026-10-31 | Owner de `apply` retiré des 12 management groups. Première tentative sans effet (option inexistante sur `delete`) et masquée par `az role assignment list --all`, qui ne voyait pas ces attributions ; refait par l'API REST. Reste à la racine : Management Group Contributor, Resource Policy Contributor, User Access Administrator |
+| 8. Bootstrap | 2026-10-31 | Plan `5 to add`. Rattachement, renommage, budget et alerte appliqués ; échec sur Defender `Discovery` (plan de base, `Standard` imposé). Diagnostic refait par compteur : la facture venait de Defender CSPM, déjà désactivé. Correctif `defender_cspm`, plan `1 to add`, puis « No changes ». Le plan des PR a révélé `platform_subscription_ids` absent en CI (2 destructions proposées) et le budget illisible par `plan` : variable ajoutée, plan sans refresh pour le bootstrap |
+| 9. Clôture | 2026-10-31 | `azpl-management` sous `management`, `apply` sans Owner hérité ; `rg-portfolio` vide supprimé ; inventaire de fin : zéro resource group sans tags, zéro ressource hors code |
 
 ## Leçons à reporter en mission
 
@@ -171,5 +174,10 @@ lui, le plan proposait de détruire les rôles AKS de l'identité `plan`.
 - Un provider qui lit des secrets au refresh (clé de déploiement d'une Static Web App avec
   azurerm) impose de donner ce droit au plan des PR : en choisir un autre plutôt que d'élargir.
 - Les droits d'une identité de CI peuvent venir d'ailleurs que du code qui les déclare : ici,
-  `apply` est Owner des subscriptions qu'elle a créées par alias. L'inventaire des droits
-  fait partie de la reprise.
+  `apply` est Owner des subscriptions qu'elle a créées par alias, et des management groups
+  qu'elle a créés. L'inventaire des droits fait partie de la reprise, et il se fait par l'API :
+  `az role assignment list --all` ne montrait aucune de ces attributions.
+- Attribuer un coût à un plan se vérifie par compteur (`MeterSubCategory`), pas par la liste
+  des plans activés : `Discovery` paraissait payant, la facture venait de Defender CSPM.
+- Un plan de PR « vert » ne suffit pas : lire les destructions. Une variable absente en CI
+  (liste vide par défaut) proposait de supprimer des rôles.

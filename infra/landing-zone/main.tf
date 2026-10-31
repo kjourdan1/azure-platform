@@ -53,7 +53,8 @@ locals {
 }
 
 # Hiérarchie de management groups et policies de référence ALZ, sous le Tenant Root Group.
-# La subscription du state (LAB) reste à la racine : aucune policy ALZ ne s'y applique.
+# La subscription du state (azpl-management) est rattachée à `management` par le bootstrap,
+# qui la gère : elle n'est pas déclarée ici.
 module "alz" {
   # Épinglé par commit (tag v0.22.0) : le lock file vérifie les providers, pas les modules.
   source = "git::https://github.com/Azure/terraform-azurerm-avm-ptn-alz.git?ref=e2a318c3eba91967c4ce3cd2738b2b2569db994e"

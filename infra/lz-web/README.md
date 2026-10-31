@@ -1,7 +1,7 @@
 # Landing zone web
 
 ## Problème résolu
-Le portfolio (`www.killianjourdan.com`) vivait dans `LAB`, la subscription du state Terraform,
+Le portfolio (`www.killianjourdan.com`) vivait dans `LAB` (aujourd'hui `azpl-management`), la subscription du state Terraform,
 hors de toute gouvernance. Cette couche lui donne une landing zone : subscription `azpl-lz-web`
 sous le management group `online`, resource group tagué, ressources déclarées en code.
 
