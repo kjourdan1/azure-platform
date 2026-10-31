@@ -23,11 +23,14 @@ weekend must not cost more than the whole project.
 ```mermaid
 flowchart LR
   subgraph tenant[Tenant]
-    subgraph lab[LAB subscription]
-      state[(Terraform state<br/>keyless storage)]
-      ids[CI identities<br/>plan / apply]
-    end
     subgraph alz[ALZ management groups + policies]
+      subgraph mgmt[azpl-management]
+        state[(Terraform state<br/>keyless storage)]
+        ids[CI identities<br/>plan / apply]
+      end
+      subgraph lzweb[azpl-lz-web]
+        swa[Portfolio<br/>Static Web App]
+      end
       subgraph platform[azpl-platform]
         law[Log Analytics]
         hub[Hub VNet]
@@ -58,7 +61,7 @@ flowchart LR
 | AKS | `infra/aks` | Cluster: OIDC + Workload Identity, Azure RBAC, CNI Overlay with Cilium, Azure Policy and KEDA add-ons, Flux extension, federated credentials | Created by `lab-up`, deleted nightly by `lab-down` |
 | GitOps | `gitops/` | What Flux reconciles, in three ordered levels: platform controllers, their configurations, hosted apps | Reapplied by Flux on every `lab-up` |
 | AI | `infra/ai` | Azure AI Foundry account and project, `gpt-5.4-mini` in the EU data zone, no API keys (Entra only), diagnostics to central Log Analytics | Permanent (no fixed cost) |
-| Web landing zone | `infra/lz-web` | Subscription `azpl-lz-web` under `online`, landing the portfolio site taken over from the standalone `LAB` subscription (brownfield runbook) | Permanent |
+| Web landing zone | `infra/lz-web` | Subscription `azpl-lz-web` under `online`, landing the portfolio site taken over from the standalone state subscription, now `azpl-management` (brownfield runbook) | Permanent |
 
 The common thread is the path of a secret: Key Vault provisioned and governed by policy, read
 through Workload Identity with no stored credential, materialised in the cluster by External
@@ -91,7 +94,7 @@ Actual cost from Azure Cost Management, October 1–29, 2026, all subscriptions:
 | | Container Registry (Basic) | €0.37 |
 | | Load balancer | €0.19 |
 | | Storage, network, DNS, Key Vault | €0.10 |
-| `LAB` | Microsoft Defender for Cloud | €0.64 |
+| `azpl-management` (state) | Defender CSPM, enabled outside code, off since Oct 26 and pinned to Free in code | €0.64 |
 | `azpl-platform` | Hub VNet, Log Analytics | €0.00 |
 | **Total** | | **€2.43** |
 
@@ -159,7 +162,7 @@ lab-down      → every night, deletes the cluster with a least-privilege identi
 - [ ] Custom Helm chart
 - [x] AI foundations: Azure AI Foundry with a pinned model deployment, keyless access, token usage logged; `ai-smoke` workflow proves it end to end
 - [ ] Enterprise AI assistant on top of it: RAG, MCP tools with the user's identity, guardrails, caching and routing, evals in CI
-- [ ] Brownfield takeover of the standalone `LAB` subscription into the landing zone: inventory, a new `online` subscription for the portfolio, move, Terraform import, `LAB` under `management` ([runbook](docs/runbooks/brownfield-lab.md))
+- [x] Brownfield takeover of the standalone state subscription into the landing zone: inventory, a new `online` subscription for the portfolio, move, Terraform import, rights review, subscription renamed `azpl-management` under `management`, zero resources left outside code ([runbook](docs/runbooks/brownfield-lab.md))
 - [ ] Drift detection and a daily sweep of billable resources
 
 ## Known limits
@@ -167,10 +170,11 @@ lab-down      → every night, deletes the cluster with a least-privilege identi
 - Key Vault, ACR and the AKS API are public endpoints (Entra-only access) while CI runs on
   GitHub-hosted runners with dynamic IPs. Private endpoints come with a self-hosted runner.
 - MCA billing allows one new subscription per 24 hours.
-- `infra/bootstrap` is ahead of its state: the global budget, the cost anomaly alert, the GitHub
-  environment management and the subscription-level Contributor assignments are in code but were
-  never applied (GitHub settings are managed by hand). Per-subscription budgets from the landing
-  zone are in place. Reconciling this, import or removal, is a dedicated task.
+- The `apply` identity keeps User Access Administrator at the root, so it could grant itself a
+  role. Target: Role Based Access Control Administrator with an ABAC condition on the roles and
+  principals it may assign.
+- PR plans of `infra/bootstrap` run without refresh: the global budget lives on the billing
+  profile, which the `plan` identity cannot read. Drift on that stack shows in the operator's plan.
 - The `alz` provider reports that three policies of the Microsoft cloud security benchmark need
   manual role assignments; they are `AuditIfNotExists`, so nothing is deployed in the meantime.
 

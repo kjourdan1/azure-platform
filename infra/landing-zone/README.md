@@ -27,9 +27,9 @@ approbation dans l'environnement `prd`.
     le cluster propage ses tags à son resource group de nœuds.
   - alerte d'anomalie de coût quotidienne par subscription (gratuite).
 - **Budget global de 50 €/mois dans le bootstrap** : le profil de facturation est le seul
-  scope qui couvre tout, LAB comprise, et il exige un rôle de facturation que la CI n'a pas.
-- **Subscription du state hors hiérarchie** : elle reste au Tenant Root Group, aucune policy
-  ALZ ne s'y applique.
+  scope qui couvre tout, subscription du state comprise, et il exige un rôle de facturation que la CI n'a pas.
+- **Subscription du state sous `management`** : rattachée par le bootstrap après une revue des
+  droits (`docs/runbooks/brownfield-lab.md`), elle reçoit les policies ALZ comme le reste.
 
 ## Limites connues
 - Subscriptions créées par alias (compte MCA) : l'identité apply doit détenir le rôle de
