@@ -134,6 +134,22 @@ les confronter aux ressources restantes de `LAB` (state et identités, tous tagu
 Après : `az policy state trigger-scan --subscription <id LAB>` puis comparaison avec l'état de
 référence de l'étape 0.
 
+### Étape 8 : prérequis du plan des PR
+
+Le budget global vit sur le profil de facturation : le plan des PR qui touchent le bootstrap
+doit pouvoir le lire. Rôle « Billing profile reader » pour l'identité `plan`, attribué par
+l'API (le portail n'attribue pas de rôle de facturation à une identité managée) :
+
+```bash
+BP=/providers/Microsoft.Billing/billingAccounts/<compte>/billingProfiles/<profil>
+az rest --method put \
+  --url "https://management.azure.com$BP/billingRoleAssignments/$(uuidgen)?api-version=2024-04-01" \
+  --body "{\"properties\":{\"principalId\":\"<principalId plan>\",\"principalTenantId\":\"<tenant>\",\"roleDefinitionId\":\"$BP/billingRoleDefinitions/40000000-aaaa-bbbb-cccc-100000000002\"}}"
+```
+
+La CI reçoit aussi `platform_subscription_ids` (secret `PLATFORM_SUBSCRIPTION_IDS`) : sans
+lui, le plan proposait de détruire les rôles AKS de l'identité `plan`.
+
 ## Journal d'exécution
 
 | Étape | Date | Résultat |

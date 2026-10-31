@@ -153,6 +153,8 @@ jobs:
       TF_VAR_manage_github: "false" # le GITHUB_TOKEN de la CI n'a pas les droits admin du dépôt
       TF_VAR_subscription_billing_scope: ${{ secrets.AZURE_BILLING_SCOPE }}
       TF_VAR_budget_alert_email: ${{ secrets.BUDGET_ALERT_EMAIL }}
+      # Liste HCL, ex. ["<id>", "<id>"] : vide, le plan détruirait les rôles AKS de l'identité plan.
+      TF_VAR_platform_subscription_ids: ${{ secrets.PLATFORM_SUBSCRIPTION_IDS }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -167,7 +169,7 @@ jobs:
       - name: variables requises
         run: |
           missing=0
-          for v in ARM_CLIENT_ID ARM_TENANT_ID ARM_SUBSCRIPTION_ID TF_VAR_operator_object_id TF_VAR_subscription_billing_scope TF_VAR_budget_alert_email; do
+          for v in ARM_CLIENT_ID ARM_TENANT_ID ARM_SUBSCRIPTION_ID TF_VAR_operator_object_id TF_VAR_subscription_billing_scope TF_VAR_budget_alert_email TF_VAR_platform_subscription_ids; do
             if [ -z "${!v}" ]; then
               echo "::error::$v is empty: set the matching GitHub Actions secret"
               missing=1
