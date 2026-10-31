@@ -184,11 +184,19 @@ jobs:
       # ils restent sur le runner, jamais publiés en artefact.
       - name: terraform plan
         id: plan
+        env:
+          ROOT: ${{ matrix.root }}
         run: |
           set +e
           # Les lignes de refresh ([id=...]) contiennent des IDs parfois encodés (base64)
           # que le masquage des secrets ne reconnaît pas : elles ne sont pas publiées.
-          terraform plan -lock-timeout=5m -detailed-exitcode -out=tfplan > plan.log 2>&1
+          # Bootstrap : le budget global vit sur le profil de facturation, que l'identité plan
+          # ne peut pas lire (aucun rôle de facturation attribuable à une identité managée sur
+          # ce compte). Plan sans refresh : code comparé au state, la dérive se voit au plan de
+          # l'opérateur, qui applique cette stack.
+          refresh=""
+          [ "$ROOT" = "infra/bootstrap" ] && refresh="-refresh=false"
+          terraform plan $refresh -lock-timeout=5m -detailed-exitcode -out=tfplan > plan.log 2>&1
           code=$?
           sed -E 's/ \[id=[^]]*\]//' plan.log
           set -e
