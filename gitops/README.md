@@ -26,6 +26,7 @@ l'ordre, chacun attendant que le précédent soit sain :
 | 1 | external-dns 1.23.0 | Enregistrements de `lab.killianjourdan.com` tirés des HTTPRoute | Workload Identity (`external-dns`) |
 | 2 | `ClusterIssuer` prod / staging, `Gateway platform`, `ClusterSecretStore azure-key-vault` | Configurations partagées | |
 | 3 | `demo` (podinfo) | `https://hello.lab.killianjourdan.com`, preuve du chemin d'un secret | |
+| 3 | `ai-gateway` (`web`, `cost-api`, `chat-api`) | `https://ai.lab.killianjourdan.com` : console des coûts et assistant Foundry, derrière Entra ID (OIDC à la Gateway), limite de débit sur le chat, entrées du namespace refusées par défaut | Workload Identity (`ai-cost`, `ai-chat`) |
 
 ### Le chemin d'un secret (`apps/demo/secret-path.yaml`)
 

@@ -1,0 +1,77 @@
+# Coûts de la plateforme. Identité ai-cost : Cost Management Reader et Reader sur le management
+# group alz (lecture seule), posés dans infra/lz-aks.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cost-api
+  namespace: ai-gateway
+  annotations:
+    azure.workload.identity/client-id: ${AI_COST_CLIENT_ID}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cost-api
+  namespace: ai-gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cost-api
+  template:
+    metadata:
+      labels:
+        app: cost-api
+        # Le webhook Workload Identity injecte le jeton fédéré et les variables AZURE_*.
+        azure.workload.identity/use: "true"
+    spec:
+      serviceAccountName: cost-api
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: cost-api
+          image: acrazplaksprdfrc001.azurecr.io/ai-gateway/cost-api
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            - name: MODEL_METER
+              value: "5.4 mini"
+            - name: MODEL_REGION
+              value: francecentral
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+          resources:
+            requests:
+              cpu: 25m
+              memory: 96Mi
+            limits:
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cost-api
+  namespace: ai-gateway
+spec:
+  selector:
+    app: cost-api
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

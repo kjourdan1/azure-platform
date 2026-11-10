@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespace.yaml
+  - web.yaml
+  - cost-api.yaml
+  - chat-api.yaml
+  - routes.yaml
+  - access.yaml
+  - network-policies.yaml
+# Une seule version pour les trois images : le commit de main qui les a construites
+# (workflow build-images, tag = 12 premiers caractères du commit).
+images:
+  - name: acrazplaksprdfrc001.azurecr.io/ai-gateway/web
+    newTag: unset
+  - name: acrazplaksprdfrc001.azurecr.io/ai-gateway/cost-api
+    newTag: unset
+  - name: acrazplaksprdfrc001.azurecr.io/ai-gateway/chat-api
+    newTag: unset

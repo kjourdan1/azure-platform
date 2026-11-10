@@ -38,3 +38,14 @@ variable "gitops_branch" {
   type        = string
   default     = "main"
 }
+
+variable "ai_gateway_client_id" {
+  description = "Client ID de l'application Entra azpl-ai-gateway (connexion OIDC à la console). Créée à la main : la CI n'a aucun droit sur Entra ID."
+  type        = string
+
+  # Vide, Flux écrirait une SecurityPolicy sans client : on échoue ici plutôt qu'au lab-up.
+  validation {
+    condition     = can(regex("^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$", var.ai_gateway_client_id))
+    error_message = "ai_gateway_client_id must be the application (client) ID, a lowercase GUID."
+  }
+}

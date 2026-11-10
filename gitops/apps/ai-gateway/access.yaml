@@ -1,0 +1,64 @@
+# Qui peut ouvrir la console : authentification Entra ID (OIDC) faite par la Gateway, avant
+# que la requête n'atteigne un pod. Seuls les comptes assignés à l'application Entra entrent
+# (« Assignment required »). Un visiteur anonyme ne déclenche donc aucun appel au modèle.
+#
+# Le secret client vit dans Key Vault (déposé à la main, 90 jours au plus) et n'est relu que
+# dans ce namespace.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: oidc-client
+  namespace: ai-gateway
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: azure-key-vault
+    kind: ClusterSecretStore
+  target:
+    name: oidc-client
+  data:
+    # Clé attendue par Envoy Gateway dans le Secret référencé par la SecurityPolicy.
+    - secretKey: client-secret
+      remoteRef:
+        key: ai-gateway-oidc-client-secret
+---
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: SecurityPolicy
+metadata:
+  name: entra-oidc
+  namespace: ai-gateway
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: console
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: chat
+  oidc:
+    provider:
+      issuer: https://login.microsoftonline.com/${AZURE_TENANT_ID}/v2.0
+    clientID: ${AI_GATEWAY_CLIENT_ID}
+    clientSecret:
+      name: oidc-client
+    redirectURL: https://ai.${DNS_ZONE}/oauth2/callback
+    logoutPath: /logout
+---
+# Plafond de débit sur le chat, en plus des garde-fous de chat-api et du quota du déploiement.
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: BackendTrafficPolicy
+metadata:
+  name: chat-rate-limit
+  namespace: ai-gateway
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: chat
+  rateLimit:
+    type: Local
+    local:
+      rules:
+        - limit:
+            requests: 20
+            unit: Minute
