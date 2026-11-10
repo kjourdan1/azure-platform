@@ -1,12 +1,11 @@
 name: terraform-pr
 
+# Sans filtre de chemins : le check terraform-pr est exigé par le ruleset de main, il doit
+# donc répondre sur toutes les PR. Sans changement sous infra/, le job changes renvoie une
+# liste vide, static et plan sont sautés, et le verdict passe en quelques secondes.
 on:
   pull_request:
     branches: [main]
-    paths:
-      - "infra/**"
-      - ".tflint.hcl"
-      - ".github/workflows/terraform-pr.yml"
 
 # Moindre privilège par défaut : chaque job élargit uniquement ce dont il a besoin.
 permissions:
