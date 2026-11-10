@@ -1,0 +1,41 @@
+# Entrées du namespace : refus par défaut, puis seulement la Gateway vers les trois services
+# et chat-api vers cost-api. Les sorties restent ouvertes (Azure, DNS) : leur filtrage est
+# le rôle du firewall du hub (docs/plans/ai-landing-zone.md).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: ai-gateway
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress"]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: from-gateway
+  namespace: ai-gateway
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: envoy-gateway-system
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: chat-to-cost
+  namespace: ai-gateway
+spec:
+  podSelector:
+    matchLabels:
+      app: cost-api
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: chat-api

@@ -1,0 +1,80 @@
+# Conversation avec Foundry. Identité ai-chat : inférence seule sur le compte Foundry (rôle posé
+# dans infra/ai). Aucun droit sur les coûts : les prix du modèle viennent de cost-api.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: chat-api
+  namespace: ai-gateway
+  annotations:
+    azure.workload.identity/client-id: ${AI_CHAT_CLIENT_ID}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chat-api
+  namespace: ai-gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chat-api
+  template:
+    metadata:
+      labels:
+        app: chat-api
+        # Le webhook Workload Identity injecte le jeton fédéré et les variables AZURE_*.
+        azure.workload.identity/use: "true"
+    spec:
+      serviceAccountName: chat-api
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: chat-api
+          image: acrazplaksprdfrc001.azurecr.io/ai-gateway/chat-api
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            # Mêmes valeurs que le workflow ai-smoke, qui les prouve de bout en bout.
+            - name: FOUNDRY_ENDPOINT
+              value: https://aif-azpl-prd-frc-001.openai.azure.com
+            - name: FOUNDRY_DEPLOYMENT
+              value: gpt-5.4-mini
+            - name: COST_API_URL
+              value: http://cost-api
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+          resources:
+            requests:
+              cpu: 25m
+              memory: 96Mi
+            limits:
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: chat-api
+  namespace: ai-gateway
+spec:
+  selector:
+    app: chat-api
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

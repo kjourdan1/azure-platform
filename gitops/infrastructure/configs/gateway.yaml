@@ -40,6 +40,17 @@ spec:
       allowedRoutes:
         namespaces:
           from: All
+    - name: https-ai
+      protocol: HTTPS
+      port: 443
+      hostname: ai.${DNS_ZONE}
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: ai-tls
+      allowedRoutes:
+        namespaces:
+          from: All
 ---
 # Tout le HTTP part en HTTPS. Le challenge ACME (/.well-known/acme-challenge/...) reste
 # servi en HTTP : la route que crée cert-manager est plus spécifique et passe en priorité.

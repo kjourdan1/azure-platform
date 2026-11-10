@@ -153,6 +153,7 @@ jobs:
       TF_VAR_manage_github: "false" # le GITHUB_TOKEN de la CI n'a pas les droits admin du dépôt
       TF_VAR_subscription_billing_scope: ${{ secrets.AZURE_BILLING_SCOPE }}
       TF_VAR_budget_alert_email: ${{ secrets.BUDGET_ALERT_EMAIL }}
+      TF_VAR_ai_gateway_client_id: ${{ secrets.AI_GATEWAY_CLIENT_ID }} # infra/aks seulement
       # Liste HCL, ex. ["<id>", "<id>"] : vide, le plan détruirait les rôles AKS de l'identité plan.
       TF_VAR_platform_subscription_ids: ${{ secrets.PLATFORM_SUBSCRIPTION_IDS }}
     steps:

@@ -1,0 +1,20 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespace.yaml
+  - web.yaml
+  - cost-api.yaml
+  - chat-api.yaml
+  - routes.yaml
+  - access.yaml
+  - network-policies.yaml
+# Images publiées par build-images depuis main (commit f196e356bb96), épinglées par digest :
+# un tag peut être réécrit dans le registre, un digest non. Mise à jour : une PR qui change
+# ces trois valeurs, avec le résumé du run build-images comme preuve.
+images:
+  - name: acrazplaksprdfrc001.azurecr.io/ai-gateway/web
+    digest: sha256:abb30f619c5b1d8d44b3ba3354d8e799bb5f7765e29a184a74805c56f9f0ab4b
+  - name: acrazplaksprdfrc001.azurecr.io/ai-gateway/cost-api
+    digest: sha256:ceb75a1ae9c114d45917baea5498b087ef32b017bd515ad4057994621f4b7d4b
+  - name: acrazplaksprdfrc001.azurecr.io/ai-gateway/chat-api
+    digest: sha256:617fc4894c88ff8a079b03b9447dc8e71f0b39646556b2720eefb8d3c4f767ec

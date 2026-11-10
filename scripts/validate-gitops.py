@@ -36,6 +36,9 @@ SAMPLES = {
     "ESO_CLIENT_ID": "00000000-0000-0000-0000-000000000003",
     "EXTERNAL_DNS_CLIENT_ID": "00000000-0000-0000-0000-000000000004",
     "SECRET_EXPIRES_AT": "2030-01-01T00:00:00Z",
+    "AI_CHAT_CLIENT_ID": "00000000-0000-0000-0000-000000000005",
+    "AI_COST_CLIENT_ID": "00000000-0000-0000-0000-000000000006",
+    "AI_GATEWAY_CLIENT_ID": "00000000-0000-0000-0000-000000000007",
 }
 
 
@@ -68,6 +71,11 @@ def check_containers(docs, origin):
         for kind in ("initContainers", "containers"):
             for c in pod.get(kind) or []:
                 sc = c.get("securityContext") or {}
+                # Tag posé par la PR de déploiement (kustomization images) : « unset » ou
+                # absent, l'image n'existe pas dans le registre.
+                image = c.get("image", "")
+                if image.endswith(":unset") or ("azurecr.io/" in image and ":" not in image.rsplit("/", 1)[-1]):
+                    bad.append(f"{origin}: {doc['kind']}/{doc['metadata']['name']} {c['name']} image sans tag ({image})")
                 if sc.get("allowPrivilegeEscalation") is not False or sc.get("privileged"):
                     bad.append(f"{origin}: {doc['kind']}/{doc['metadata']['name']} {c['name']}")
     return bad
