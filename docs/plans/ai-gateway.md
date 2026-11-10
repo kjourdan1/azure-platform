@@ -12,8 +12,7 @@ Architecture et décisions : `apps/ai-gateway/README.md`.
 | 1a. Identités `ai-chat`, `ai-cost`, `build` (lz-aks) | `feat/ai-gateway-infra` | Poussée, PR à ouvrir. Plan `7 to add, 0 to change, 0 to destroy` |
 | 1b. Inférence Foundry pour `ai-chat` (infra/ai) | `feat/ai-gateway-access` | Poussée. À ouvrir **après l'apply de 1a** (lit `principal_id` dans le state de lz-aks) |
 | 2. Application et workflow `build-images` | `feat/ai-gateway-app` | Poussée, PR à ouvrir. 25 tests, cost-api vérifié contre les vraies API, images testées en lecture seule et non root |
-| 1c. Fédération des identités et substitutions Flux (infra/aks) | à écrire | Après 1a |
-| 3. Manifests Flux, route, OIDC, limite de débit, NetworkPolicies | à écrire | Après 1c et l'app registration |
+| 3. Déploiement : fédération des identités (infra/aks), manifests Flux, route, OIDC, limite de débit, NetworkPolicies | `feat/ai-gateway-deploy` | Poussée. 26 ressources validées (kubeconform strict, règle Gatekeeper). **Non mergeable tant que le tag des images vaut `unset`** : la validation échoue exprès |
 
 ## Ordre de reprise
 
@@ -21,39 +20,44 @@ Architecture et décisions : `apps/ai-gateway/README.md`.
 2. Dans Cloud Shell : `terraform -chdir=infra/lz-aks output -raw build_client_id`, à mettre
    dans le secret de dépôt `AZURE_CLIENT_ID_BUILD`.
 3. Ouvrir et merger **1b** (plan attendu : `1 to add`), approuver `apply-ai`.
-4. Ouvrir et merger **2** : `build-images` publie les trois images dans ACR (tag = commit).
+4. Ouvrir et merger **2** : `build-images` publie les trois images dans ACR. Le tag est
+   affiché dans le résumé du run (12 premiers caractères du commit de `main`).
    Si Trivy bloque sur une vulnérabilité corrigeable, corriger la base avant de merger.
 5. App registration `azpl-ai-gateway` (à la main) :
    - redirect URI web `https://ai.lab.killianjourdan.com/oauth2/callback` ;
    - Enterprise application → *Assignment required* = Yes, s'assigner ;
-   - client secret de 90 jours au plus, déposé dans le Key Vault du cluster (commande fournie
-     avec la PR 3 : `contentType` et date d'expiration exigés par la policy) ;
-   - le client ID va dans le secret de dépôt `AI_GATEWAY_CLIENT_ID` (jamais dans Git).
-6. Écrire **1c** puis **3**, `lab-up`, capture d'écran pour le README.
+   - client ID dans le secret de dépôt `AI_GATEWAY_CLIENT_ID` (jamais dans Git) ;
+   - client secret de 90 jours au plus, déposé dans le Key Vault du cluster (la policy exige
+     `contentType` et une expiration ; la valeur est saisie sans écho, hors historique) :
+     ```bash
+     read -rs S
+     az keyvault secret set --vault-name kv-azpl-aks-prd-frc-001 \
+       --name ai-gateway-oidc-client-secret --content-type text/plain \
+       --expires "$(date -u -d '+85 days' +%Y-%m-%dT%H:%M:%SZ)" --value "$S" --query id -o tsv
+     unset S
+     ```
+     Il faut le rôle Key Vault Secrets Officer sur ce coffre.
+6. Sur `feat/ai-gateway-deploy` : remplacer les trois `newTag: unset` de
+   `gitops/apps/ai-gateway/kustomization.yaml` par le tag de l'étape 4, ouvrir la PR
+   (`gitops-pr` et le plan de `infra/aks` doivent être verts), merger.
+7. `lab-up`, puis vérifier (voir plus bas) et capture d'écran pour le README.
 
-## 1c — à écrire (infra/aks)
+## Vérification après `lab-up`
 
-- `workload_identity_subjects` : `ai_chat = "ai-gateway:chat-api"`, `ai_cost = "ai-gateway:cost-api"`.
-- Remote state `ai` (clé `ai.tfstate`) pour `foundry_endpoint` et `chat_deployment`.
-- `flux_substitutions` : `AI_CHAT_CLIENT_ID`, `AI_COST_CLIENT_ID`, `FOUNDRY_ENDPOINT`,
-  `FOUNDRY_DEPLOYMENT`, `ACR_LOGIN_SERVER` (output `container_registry_login_server`),
-  `AI_GATEWAY_CLIENT_ID` (variable alimentée par le secret, dans `lab-up` et `terraform-pr`).
+Rien de ce qui suit n'a pu être testé hors cluster.
 
-## 3 — à écrire (gitops/apps/ai-gateway)
+1. `kubectl get pods,httproute,securitypolicy,backendtrafficpolicy -n ai-gateway` : pods
+   `Running`, policies `Accepted`.
+2. `kubectl get externalsecret -n ai-gateway` : `SecretSynced`.
+3. Navigation privée sur `https://ai.lab.killianjourdan.com` : redirection vers la connexion
+   Microsoft ; un compte non assigné est refusé.
+4. Console : coûts affichés (Workload Identity de `cost-api`), réponse du modèle en streaming
+   avec tokens et coût (Workload Identity de `chat-api`).
+5. Plus de 20 messages en une minute : réponse 429.
+6. `curl -sI` sur l'URL sans cookie : 302, jamais 200.
 
-- Namespace `ai-gateway` ; un ServiceAccount par service, annoté avec son client ID,
-  pods labellisés `azure.workload.identity/use: "true"` (cost-api, chat-api).
-- Deployments durcis (Gatekeeper) : `runAsNonRoot`, `readOnlyRootFilesystem`, `emptyDir`
-  sur `/tmp` (nginx en a besoin), `allowPrivilegeEscalation: false`, capabilities `drop: ALL`,
-  probes `/healthz`, requests/limits ; images `${ACR_LOGIN_SERVER}/ai-gateway/<svc>:<commit>`.
-- Services ClusterIP (port 80) ; `chat-api` appelle `http://cost-api`.
-- HTTPRoute `ai.${DNS_ZONE}` : `/api/cost` → cost-api, `/api/chat` → chat-api, `/` → web ;
-  listener HTTPS dédié et certificat Let's Encrypt sur la Gateway.
-- `SecurityPolicy` OIDC (issuer `https://login.microsoftonline.com/${AZURE_TENANT_ID}/v2.0`,
-  secret client relu par ESO dans le namespace de la policy), `logoutPath: /logout`.
-- `BackendTrafficPolicy` : limite de débit locale sur `/api/chat`.
-- NetworkPolicies (Cilium) : entrée depuis la Gateway seulement ; `chat-api` → `cost-api`.
-- Le bouton « Se déconnecter » du front pointe déjà sur `/logout`.
+Si une `SecurityPolicy` n'est pas `Accepted`, ne pas laisser la route exposée : retirer
+`ai-gateway` de `gitops/apps/kustomization.yaml` le temps de corriger.
 
 ## Textes des PR
 
@@ -104,6 +108,24 @@ A console on AKS that shows what the whole lab costs (billed and live) and talks
 - 25 unit tests.
 - cost-api run against the real Azure APIs.
 - Images run read-only, non-root, no capabilities.
+```
+
+### 3 — `feat(ai-gateway): GitOps deployment behind Entra ID`
+
+```markdown
+## Why
+Deploys the ai-gateway console on the cluster, reachable only by accounts assigned to the Entra application.
+
+## Changes
+- `gitops/apps/ai-gateway`: three hardened Deployments (non-root, read-only filesystem, no capabilities), one ServiceAccount per service with its Workload Identity, path-based routes on `ai.<zone>`, Entra ID OIDC at the Gateway, rate limit on the chat route, default-deny ingress NetworkPolicies.
+- `gitops/infrastructure/configs/gateway.yaml`: HTTPS listener and certificate for `ai.<zone>`.
+- `infra/aks`: federated credentials for `ai-chat` and `ai-cost`, Flux substitutions, `ai_gateway_client_id` variable (required, GUID-validated).
+- Workflows: `AI_GATEWAY_CLIENT_ID` secret passed to Terraform.
+- `scripts/validate-gitops.py`: fails on an image without a real tag.
+
+## Validation
+- 26 resources valid (kubeconform strict, Envoy Gateway CRDs included), Gatekeeper rule passes.
+- Not testable outside the cluster: OIDC sign-in, rate limit, Workload Identity. Checklist in `docs/plans/ai-gateway.md`.
 ```
 
 ## Points à surveiller
