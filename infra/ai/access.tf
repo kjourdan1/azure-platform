@@ -37,3 +37,12 @@ resource "azurerm_role_assignment" "smoke_inference" {
   principal_id         = azurerm_user_assigned_identity.smoke.principal_id
   principal_type       = "ServicePrincipal"
 }
+
+# Microservice chat-api d'ai-gateway (AKS, Workload Identity) : inférence seule, comme
+# ai-smoke. Les quotas du déploiement plafonnent ce qu'il peut consommer.
+resource "azurerm_role_assignment" "ai_gateway_chat" {
+  scope                = azurerm_cognitive_account.foundry.id
+  role_definition_name = "Cognitive Services OpenAI User"
+  principal_id         = data.terraform_remote_state.lz_aks.outputs.workload_identities.ai_chat.principal_id
+  principal_type       = "ServicePrincipal"
+}
