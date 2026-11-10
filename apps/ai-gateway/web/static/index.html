@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>azpl · console</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <svg class="mark" viewBox="0 0 16 16" aria-hidden="true"><rect x="1" y="1" width="6" height="6"/><rect x="9" y="1" width="6" height="6"/><rect x="1" y="9" width="6" height="6"/><rect x="9" y="9" width="6" height="6" class="mark-accent"/></svg>
+      <span class="brand-name">azpl</span><span class="brand-sep">/</span><span class="brand-page">console</span>
+    </div>
+    <div class="topbar-status">
+      <span class="status" id="cluster-status" data-state="unknown"><i></i><span>Cluster</span></span>
+      <span class="refresh" id="refresh-label">Chargement…</span>
+      <a class="logout" href="/logout">Se déconnecter</a>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="costs" aria-labelledby="costs-title">
+      <h1 id="costs-title" class="visually-hidden">Coûts de la plateforme</h1>
+
+      <dl class="kpis">
+        <div class="kpi">
+          <dt>Coût en direct</dt>
+          <dd><span class="figure" id="kpi-hourly">–</span><span class="unit">/ h</span></dd>
+          <p class="hint" id="kpi-hourly-hint">Ressources en cours d'exécution</p>
+        </div>
+        <div class="kpi">
+          <dt>Projection 30 jours</dt>
+          <dd><span class="figure" id="kpi-monthly">–</span></dd>
+          <p class="hint">Au rythme actuel, hors usage</p>
+        </div>
+        <div class="kpi">
+          <dt>Facturé ce mois</dt>
+          <dd><span class="figure" id="kpi-mtd">–</span></dd>
+          <p class="hint" id="kpi-mtd-hint">Cost Management</p>
+        </div>
+        <div class="kpi">
+          <dt>Tokens, cette session</dt>
+          <dd><span class="figure" id="kpi-tokens">0</span></dd>
+          <p class="hint" id="kpi-tokens-hint">0,0000 € de modèle</p>
+        </div>
+      </dl>
+
+      <article class="panel">
+        <header class="panel-head">
+          <h2>Coût facturé, 30 derniers jours</h2>
+          <ul class="legend" id="chart-legend"></ul>
+        </header>
+        <div class="chart" id="chart" role="img" aria-label="Coût quotidien par subscription"></div>
+        <p class="footnote" id="billed-note">Cost Management publie la consommation avec 8 à 24 h de décalage.</p>
+      </article>
+
+      <div class="split">
+        <article class="panel">
+          <header class="panel-head"><h2>Par subscription, ce mois</h2></header>
+          <table class="table" id="subs-table">
+            <thead><tr><th>Subscription</th><th class="num">Facturé</th><th class="bar-col"><span class="visually-hidden">Part</span></th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </article>
+        <article class="panel">
+          <header class="panel-head"><h2>Par service, ce mois</h2></header>
+          <table class="table" id="services-table">
+            <thead><tr><th>Service</th><th class="num">Facturé</th><th class="bar-col"><span class="visually-hidden">Part</span></th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </article>
+      </div>
+
+      <article class="panel">
+        <header class="panel-head">
+          <h2>En cours d'exécution</h2>
+          <span class="panel-meta" id="live-meta"></span>
+        </header>
+        <table class="table" id="live-table">
+          <thead><tr><th>Ressource</th><th>Catégorie</th><th>Détail</th><th>Subscription</th><th class="num">€ / h</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <p class="footnote" id="usage-note"></p>
+      </article>
+    </section>
+
+    <aside class="assistant" aria-labelledby="assistant-title">
+      <header class="assistant-head">
+        <h2 id="assistant-title">Assistant</h2>
+        <span class="panel-meta" id="model-name">Foundry</span>
+      </header>
+      <ol class="transcript" id="transcript" aria-live="polite">
+        <li class="empty">Posez une question sur la plateforme. Chaque réponse affiche ses tokens et son coût, comptés pendant la génération.</li>
+      </ol>
+      <form class="composer" id="composer">
+        <label for="prompt" class="visually-hidden">Message</label>
+        <textarea id="prompt" rows="3" maxlength="4000" placeholder="Votre question…" required></textarea>
+        <div class="composer-row">
+          <span class="composer-hint">Ctrl + Entrée</span>
+          <button type="button" class="ghost" id="reset">Effacer</button>
+          <button type="submit" id="send">Envoyer</button>
+        </div>
+      </form>
+    </aside>
+  </main>
+
+  <div class="tooltip" id="tooltip" hidden></div>
+</body>
+</html>
