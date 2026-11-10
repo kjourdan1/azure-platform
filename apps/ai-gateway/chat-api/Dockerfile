@@ -1,10 +1,14 @@
 # Image épinglée par digest (python:3.13-slim) : une reconstruction donne la même base.
-FROM python:3.13-slim@sha256:ae14d4ce8771606477a81446e7ef429edd6762305fc50c84507c1041fa8285d1 AS deps
+FROM python:3.13-slim@sha256:e48f59cdba69a3cbd9ed2cf0f348d90d45a8d350d98134cf1070bc106ee9ed90 AS deps
 COPY requirements.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir --prefix=/install -r /tmp/requirements.txt
 
-FROM python:3.13-slim@sha256:ae14d4ce8771606477a81446e7ef429edd6762305fc50c84507c1041fa8285d1
+FROM python:3.13-slim@sha256:e48f59cdba69a3cbd9ed2cf0f348d90d45a8d350d98134cf1070bc106ee9ed90
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+# Correctifs Debian publiés après l'image de base ; pip (et les bibliothèques qu'il embarque)
+# ne sert qu'à construire : retiré de l'image d'exécution, il ne peut plus y être vulnérable.
+RUN apt-get update && apt-get upgrade -y --no-install-recommends && rm -rf /var/lib/apt/lists/* \
+ && python -m pip uninstall -y pip && rm -rf /usr/local/lib/python3.13/ensurepip
 COPY --from=deps /install /usr/local
 WORKDIR /srv
 COPY app ./app
