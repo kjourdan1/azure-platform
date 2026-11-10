@@ -33,6 +33,13 @@ dans son propre resource group, créé et détruit à la demande ; ces ressource
   mots de passe absents puis les relit, ce qui les garde hors du state Terraform (sinon
   l'identité `plan`, qui exécute le code des PR, devrait pouvoir les lire). Leurs
   credentials fédérés vivent dans `infra/aks`, car l'émetteur OIDC change à chaque cluster.
+- **Identités d'ai-gateway, une par microservice** : `ai-chat` n'a que l'inférence sur
+  Foundry (rôle posé par `infra/ai`), `ai-cost` lit les coûts (*Cost Management Reader*) et
+  l'inventaire (*Reader*) depuis le management group `alz`, hérités par les 4 subscriptions.
+  Lecture seule partout : le microservice exposé au modèle n'a aucun droit sur les coûts, et
+  inversement.
+- **Identité `build`** (`build.tf`) : *AcrPush* sur le registre, fédérée à `main` seulement.
+  Les images sont construites sur le runner : ACR Tasks demanderait un rôle de gestion.
 
 ## Limites connues
 - Key Vault et ACR exposés publiquement (accès Entra uniquement) tant que les runners sont
