@@ -20,6 +20,18 @@ data "terraform_remote_state" "platform" {
   }
 }
 
+# Identités des applications du cluster, autorisées ici sur le compte Foundry.
+data "terraform_remote_state" "lz_aks" {
+  backend = "azurerm"
+  config = {
+    resource_group_name  = "rg-azpl-tfstate-prd-frc-001"
+    storage_account_name = "stazpltfstateprdfrc001"
+    container_name       = "tfstate"
+    key                  = "lz-aks.tfstate"
+    use_azuread_auth     = true
+  }
+}
+
 # Même subscription que le cluster : la couche IA sert d'abord ses applications. Une
 # subscription IA dédiée (vending) est la cible, écartée pour l'instant : elle repartirait
 # sans quota de modèles.

@@ -1,0 +1,98 @@
+name: build-images
+
+# Images d'ai-gateway : tests, construction et scan sur chaque PR ; publication dans ACR
+# depuis main seulement (identité build : AcrPush, fédérée à refs/heads/main). Une PR ne
+# peut donc jamais publier une image.
+on:
+  pull_request:
+    paths:
+      - "apps/ai-gateway/**"
+      - ".github/workflows/build-images.yml"
+  push:
+    branches: [main]
+    paths:
+      - "apps/ai-gateway/**"
+      - ".github/workflows/build-images.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  REGISTRY: acrazplaksprdfrc001.azurecr.io
+  TRIVY_IMAGE: aquasec/trivy:0.75.0@sha256:af6acf9a6b85dfe389a1941505c0ce9efef52a4719635e1a962f022a3d855daa
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [cost-api, chat-api]
+    defaults:
+      run:
+        working-directory: apps/ai-gateway/${{ matrix.service }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: tests
+        run: |
+          python3 -m venv /tmp/venv
+          /tmp/venv/bin/pip install --quiet --require-virtualenv -r requirements-dev.txt
+          /tmp/venv/bin/python -m pytest -q -p no:cacheprovider
+
+  image:
+    needs: test
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [web, cost-api, chat-api]
+    permissions:
+      contents: read
+      id-token: write # utilisé seulement sur main, par azure/login
+    env:
+      SERVICE: ${{ matrix.service }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Tag = commit : l'image déployée se relie à son code, et Flux ne voit changer que ce
+      # que la PR de déploiement change.
+      - name: construction
+        run: |
+          image="$REGISTRY/ai-gateway/$SERVICE:${GITHUB_SHA::12}"
+          echo "IMAGE=$image" >> "$GITHUB_ENV"
+          docker build --pull --tag "$image" "apps/ai-gateway/$SERVICE"
+
+      # Vulnérabilités HIGH/CRITICAL corrigeables : la publication est bloquée.
+      - name: scan Trivy
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock "$TRIVY_IMAGE" image \
+            --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 --no-progress "$IMAGE"
+
+      - uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID_BUILD }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+
+      # Échange du jeton Entra contre un jeton du registre : pas de `az acr login`, qui lit
+      # le registre par ARM et demanderait un rôle de lecture en plus d'AcrPush.
+      - name: publication
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        run: |
+          aad=$(az account get-access-token --query accessToken -o tsv)
+          echo "::add-mask::$aad"
+          refresh=$(curl -sS --fail-with-body -X POST "https://$REGISTRY/oauth2/exchange" \
+            --data-urlencode grant_type=access_token --data-urlencode "service=$REGISTRY" \
+            --data-urlencode "access_token=$aad" | jq -r .refresh_token)
+          echo "::add-mask::$refresh"
+          docker login "$REGISTRY" --username 00000000-0000-0000-0000-000000000000 --password-stdin <<< "$refresh"
+          docker push "$IMAGE"
+          digest=$(docker inspect --format '{{index .RepoDigests 0}}' "$IMAGE")
+          echo "- \`$SERVICE\` : \`${IMAGE##*/}\` (\`${digest##*@}\`)" >> "$GITHUB_STEP_SUMMARY"

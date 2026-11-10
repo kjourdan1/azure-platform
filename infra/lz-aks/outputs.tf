@@ -47,12 +47,25 @@ output "dns_zone_name_servers" {
 }
 
 output "workload_identities" {
-  description = "Identités des contrôleurs (ID de ressource et client ID), par clé."
+  description = "Identités des charges du cluster (ID de ressource, client ID, principal), par clé."
   value = {
     for k, id in azurerm_user_assigned_identity.workload : k => {
-      id        = id.id
-      client_id = id.client_id
+      id           = id.id
+      client_id    = id.client_id
+      principal_id = id.principal_id
     }
   }
   sensitive = true
+}
+
+output "container_registry_login_server" {
+  description = "Serveur du registre, préfixe des images déployées par Flux."
+  value       = azurerm_container_registry.aks.login_server
+}
+
+# À copier dans le secret AZURE_CLIENT_ID_BUILD du dépôt.
+output "build_client_id" {
+  description = "Client ID de l'identité du workflow build-images."
+  value       = azurerm_user_assigned_identity.build.client_id
+  sensitive   = true
 }
