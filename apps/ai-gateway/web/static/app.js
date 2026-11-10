@@ -3,6 +3,9 @@
 
 const LIVE_EVERY_MS = 30_000;
 const BILLED_EVERY_MS = 300_000;
+// Tant que le coût facturé n'a jamais été chargé (pod tout juste démarré, Cost Management qui
+// limite le débit), on redemande souvent au lieu d'attendre 5 minutes.
+const BILLED_RETRY_MS = 30_000;
 const $ = (id) => document.getElementById(id);
 
 const eur = (value, small = false) => {
@@ -112,8 +115,11 @@ async function loadBilled() {
   try {
     billed = await getJson("/api/cost/billed");
   } catch {
+    if (!billed && !sessionExpired) $("kpi-mtd-hint").textContent = "En attente de Cost Management…";
+    setTimeout(loadBilled, billed ? BILLED_EVERY_MS : BILLED_RETRY_MS);
     return;
   }
+  setTimeout(loadBilled, BILLED_EVERY_MS);
   setFigure("kpi-mtd", eur(billed.month_to_date));
   $("kpi-mtd-hint").textContent = billed.data_through
     ? `Données jusqu'au ${dayLabel(billed.data_through, { day: "numeric", month: "long" })}`
@@ -376,5 +382,4 @@ getJson("/api/chat/stats").then((stats) => { $("model-name").textContent = stats
 loadLive();
 loadBilled();
 setInterval(loadLive, LIVE_EVERY_MS);
-setInterval(loadBilled, BILLED_EVERY_MS);
 setInterval(renderFreshness, 1000);

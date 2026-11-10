@@ -5,6 +5,11 @@ from tests.fakes import FakeArm, FakePrices
 
 
 def _client(monkeypatch, arm, prices=None):
+    # Pas de préchargement en arrière-plan dans ces tests : chaque test pilote ses appels.
+    async def no_warmup(*args, **kwargs):
+        return False
+
+    monkeypatch.setattr(main, "warm_billed", no_warmup)
     monkeypatch.setattr(main, "ArmClient", lambda http: arm)
     monkeypatch.setattr(main, "RetailPrices", lambda http: prices or FakePrices())
     return TestClient(main.app)
@@ -44,3 +49,17 @@ def test_model_prices(monkeypatch):
         body = client.get("/api/cost/model-prices").json()
     assert body["per_million"]["output"] == 4.4436
     assert body["meter"] == "5.4 mini"
+
+
+def test_billed_answers_503_at_once_while_first_load_runs(monkeypatch):
+    with _client(monkeypatch, FakeArm({})) as client:
+        cache = main.app.state.billed
+
+        class Busy:
+            def locked(self):
+                return True
+
+        monkeypatch.setattr(cache, "_lock", Busy())
+        response = client.get("/api/cost/billed")
+    assert response.status_code == 503
+    assert response.json()["detail"] == "chargement en cours"

@@ -8,7 +8,22 @@ from azure.identity.aio import DefaultAzureCredential
 
 ARM = "https://management.azure.com"
 SCOPE = "https://management.azure.com/.default"
+MAX_RETRY_DELAY = 60.0
 log = logging.getLogger(__name__)
+
+
+def retry_delay(headers: httpx.Headers) -> float:
+    """Délai demandé par Azure. Cost Management l'annonce dans ses propres en-têtes
+    (x-ms-ratelimit-microsoft.costmanagement-*-retry-after), pas toujours dans Retry-After :
+    on prend le plus long, plafonné."""
+    delays = []
+    for name, value in headers.items():
+        if name.lower() == "retry-after" or name.lower().endswith("-retry-after"):
+            try:
+                delays.append(float(value))
+            except ValueError:
+                continue
+    return min(max(delays, default=5.0), MAX_RETRY_DELAY)
 
 
 class ArmClient:
@@ -24,12 +39,13 @@ class ArmClient:
 
     async def request(self, method: str, path: str, **kwargs) -> dict:
         """Appel ARM. Cost Management limite fortement le débit : un 429 est réessayé une
-        fois après le délai demandé (plafonné), puis remonté à l'appelant, qui sert son cache."""
+        fois après le délai demandé (plafonné), puis remonté à l'appelant, qui sert son cache
+        ou réessaie plus tard (préchargement au démarrage)."""
         url = path if path.startswith("https://") else f"{ARM}{path}"
         for attempt in range(2):
             response = await self._http.request(method, url, headers=await self._headers(), **kwargs)
             if response.status_code == 429 and attempt == 0:
-                delay = min(float(response.headers.get("Retry-After", "5")), 20.0)
+                delay = retry_delay(response.headers)
                 log.warning("ARM 429 on %s, retry in %.0fs", path.split("?")[0], delay)
                 await asyncio.sleep(delay)
                 continue

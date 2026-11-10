@@ -18,6 +18,14 @@ class StaleCache:
         self._lock = asyncio.Lock()
         self.last_error: str | None = None
 
+    @property
+    def empty(self) -> bool:
+        return self._fetched_at is None
+
+    @property
+    def loading(self) -> bool:
+        return self._lock.locked()
+
     async def get(self, load: Callable[[], Awaitable[Any]]) -> tuple[Any, bool]:
         """Renvoie (valeur, périmée). Un seul rafraîchissement à la fois, quel que soit le
         nombre de navigateurs ouverts : c'est ce qui protège les quotas d'API d'Azure."""

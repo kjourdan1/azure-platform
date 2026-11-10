@@ -39,3 +39,24 @@ def test_first_load_failure_propagates():
 
     with pytest.raises(RuntimeError):
         asyncio.run(cache.get(boom))
+
+
+def test_empty_and_loading_flags():
+    cache = StaleCache(60)
+    started = asyncio.Event()
+    release = asyncio.Event()
+
+    async def slow():
+        started.set()
+        await release.wait()
+        return 1
+
+    async def run():
+        task = asyncio.create_task(cache.get(slow))
+        await started.wait()
+        during = (cache.empty, cache.loading)
+        release.set()
+        await task
+        return during, (cache.empty, cache.loading)
+
+    assert asyncio.run(run()) == ((True, True), (False, False))
