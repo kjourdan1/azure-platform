@@ -8,12 +8,13 @@ resources:
   - routes.yaml
   - access.yaml
   - network-policies.yaml
-# Une seule version pour les trois images : le commit de main qui les a construites
-# (workflow build-images, tag = 12 premiers caractères du commit).
+# Images publiées par build-images depuis main (commit f196e356bb96), épinglées par digest :
+# un tag peut être réécrit dans le registre, un digest non. Mise à jour : une PR qui change
+# ces trois valeurs, avec le résumé du run build-images comme preuve.
 images:
   - name: acrazplaksprdfrc001.azurecr.io/ai-gateway/web
-    newTag: unset
+    digest: sha256:abb30f619c5b1d8d44b3ba3354d8e799bb5f7765e29a184a74805c56f9f0ab4b
   - name: acrazplaksprdfrc001.azurecr.io/ai-gateway/cost-api
-    newTag: unset
+    digest: sha256:ceb75a1ae9c114d45917baea5498b087ef32b017bd515ad4057994621f4b7d4b
   - name: acrazplaksprdfrc001.azurecr.io/ai-gateway/chat-api
-    newTag: unset
+    digest: sha256:617fc4894c88ff8a079b03b9447dc8e71f0b39646556b2720eefb8d3c4f767ec
