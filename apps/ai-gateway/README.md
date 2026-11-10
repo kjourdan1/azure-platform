@@ -36,6 +36,11 @@ le réseau du cluster ; s'il ne répond pas, le chat continue, sans coût affich
 - **Caches côté serveur** (15 min pour Cost Management, 60 s pour l'inventaire), un seul
   rafraîchissement à la fois : le nombre d'onglets ouverts ne change pas le nombre d'appels
   à Azure. Une panne amont sert la dernière valeur, signalée comme telle.
+- **Coût facturé préchargé au démarrage** : le pod est recréé à chaque `lab-up`, cache vide.
+  `cost-api` interroge Cost Management en arrière-plan dès son démarrage, avec des délais
+  croissants et le délai d'attente annoncé par Cost Management dans ses propres en-têtes.
+  Pendant ce temps, l'API répond 503 « chargement en cours » sans bloquer, et le front
+  redemande toutes les 30 s au lieu de 5 min.
 - **Tokens en direct** : chaque fragment streamé incrémente un compteur approché, remplacé
   par la consommation exacte que Foundry envoie en fin de réponse (`include_usage`).
 - **Garde-fous du chat** : rôles `user`/`assistant` seulement (pas de prompt système fourni
