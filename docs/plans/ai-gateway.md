@@ -30,7 +30,10 @@ app registration `azpl-ai-gateway`, secret client dans Key Vault.
 Personne n'a d'accès permanent aux secrets du coffre : l'opérateur s'attribue le rôle le temps
 du dépôt, puis le retire.
 
-1. App registration `azpl-ai-gateway` → nouveau client secret (90 jours au plus).
+1. App registration `azpl-ai-gateway` → nouveau client secret (90 jours au plus). Copier la
+   colonne **Value** (40 caractères, affichée une seule fois), **pas Secret ID** : un
+   identifiant déposé à la place du secret donne « OAuth flow failed » à la connexion et
+   `AADSTS7000215` dans les journaux de connexion Entra (incident du 2026-11-10).
 2. Accès juste à temps :
    ```bash
    P=<object ID de l'opérateur>
@@ -52,8 +55,24 @@ du dépôt, puis le retire.
    unset S
    ```
 5. Retrait du rôle : `az role assignment delete --assignee-object-id "$P" --role "Key Vault Secrets Officer" --scope "$KV"`.
-6. Supprimer l'ancien secret dans l'app registration. External Secrets relit le coffre toutes
-   les heures.
+6. Supprimer l'ancien secret dans l'app registration.
+7. Relecture immédiate et test du secret auprès d'Entra, sans afficher sa valeur
+   (attendu : `longueur du secret : 40` et `"token_type":"Bearer"`) :
+   ```bash
+   az aks command invoke -g rg-azpl-aks-cluster-prd-frc-001 -n aks-azpl-prd-frc-001 \
+     --subscription <subscription azpl-lz-aks> --command '
+   kubectl annotate externalsecret oidc-client -n ai-gateway force-sync=$(date +%s) --overwrite
+   sleep 15
+   CID=$(kubectl get securitypolicy entra-oidc -n ai-gateway -o jsonpath="{.spec.oidc.clientID}")
+   TID=$(kubectl get securitypolicy entra-oidc -n ai-gateway -o jsonpath="{.spec.oidc.provider.issuer}" | cut -d/ -f4)
+   SEC=$(kubectl get secret oidc-client -n ai-gateway -o jsonpath="{.data.client-secret}" | base64 -d)
+   echo "longueur du secret : ${#SEC}"
+   curl -s -X POST "https://login.microsoftonline.com/$TID/oauth2/v2.0/token" \
+     --data-urlencode "client_id=$CID" --data-urlencode "client_secret=$SEC" \
+     --data-urlencode "scope=https://graph.microsoft.com/.default" --data-urlencode grant_type=client_credentials \
+     | grep -o "\"error_codes\":\[[0-9]*\]\|\"token_type\":\"Bearer\""'
+   ```
+   Envoy relit le Secret Kubernetes sans redémarrage.
 
 ## Vérification après `lab-up`
 
