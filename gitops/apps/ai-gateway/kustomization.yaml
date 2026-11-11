@@ -8,13 +8,13 @@ resources:
   - routes.yaml
   - access.yaml
   - network-policies.yaml
-# Images publiées par build-images depuis main (commit f196e356bb96), épinglées par digest :
+# Images publiées par build-images depuis main (commit b35bb21134bc), épinglées par digest :
 # un tag peut être réécrit dans le registre, un digest non. Mise à jour : une PR qui change
 # ces trois valeurs, avec le résumé du run build-images comme preuve.
 images:
   - name: acrazplaksprdfrc001.azurecr.io/ai-gateway/web
-    digest: sha256:abb30f619c5b1d8d44b3ba3354d8e799bb5f7765e29a184a74805c56f9f0ab4b
+    digest: sha256:fb40a8b86070ebb77a563ebf1fac8ab0de16106d4393715117387651f576667f
   - name: acrazplaksprdfrc001.azurecr.io/ai-gateway/cost-api
-    digest: sha256:ceb75a1ae9c114d45917baea5498b087ef32b017bd515ad4057994621f4b7d4b
+    digest: sha256:07fdd91ce04485a15e3ed5d15e5feabe609321b1139883bb02f4ae17efada8d3
   - name: acrazplaksprdfrc001.azurecr.io/ai-gateway/chat-api
-    digest: sha256:617fc4894c88ff8a079b03b9447dc8e71f0b39646556b2720eefb8d3c4f767ec
+    digest: sha256:e5ed3ee6908ba29e8665c13dfd6c9814b834bee40f0a440eb59f965a9b8c0c20
