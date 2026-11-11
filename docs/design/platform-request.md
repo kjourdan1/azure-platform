@@ -66,13 +66,13 @@ puis l'offre en archétype et en blueprint `lzctl`.
 
 | Offre (vue métier) | Exemple de demande | Composition Azure | Archétype | Blueprint `lzctl` |
 |---|---|---|---|---|
-| Application web interne | « Un outil pour suivre nos interventions, 50 utilisateurs » | Container Apps, Postgres burstable, Key Vault, auth Entra | `corp` | `aca-platform` (existe) |
-| Site ou portail public | « Une page d'information voyageurs » | Static Web App, éventuellement API Container Apps | `online` | à créer (`web-public`) |
-| API pour des partenaires | « Exposer nos horaires à des partenaires » | Container Apps, API Management Consumption, Key Vault | `online` | `paas-secure` (existe, APIM optionnel) |
-| Traitement de données planifié | « Consolider chaque nuit les fichiers des dépôts » | Container Apps Jobs, Storage, Key Vault | `corp` | à créer (`batch-jobs`) |
+| Application web interne | « Un outil pour suivre nos demandes d'achat, 50 utilisateurs » | Container Apps, Postgres burstable, Key Vault, auth Entra | `corp` | `aca-platform` (existe) |
+| Site ou portail public | « Une page de présentation de notre nouveau service » | Static Web App, éventuellement API Container Apps | `online` | à créer (`web-public`) |
+| API pour des partenaires | « Exposer notre catalogue produits à des partenaires » | Container Apps, API Management Consumption, Key Vault | `online` | `paas-secure` (existe, APIM optionnel) |
+| Traitement de données planifié | « Fusionner chaque nuit les fichiers reçus de nos fournisseurs » | Container Apps Jobs, Storage, Key Vault | `corp` | à créer (`batch-jobs`) |
 | Assistant IA sur documents | « Un assistant qui répond sur nos procédures » | Projet Foundry, AI Search, Storage, passerelle IA (quotas) | `corp` | à créer (`ai-rag`) |
 | Applications conteneurisées multiples | « Plusieurs services qui se parlent, équipe dev dédiée » | Namespace sur AKS mutualisé, ou AKS dédié au-delà d'un seuil | `corp` | `aks-platform` (existe) |
-| Poste de travail applicatif | « Une appli métier Windows pour 20 agents » | Azure Virtual Desktop | `corp` | `avd-secure` (existe) |
+| Poste de travail applicatif | « Une appli métier Windows pour 20 utilisateurs » | Azure Virtual Desktop | `corp` | `avd-secure` (existe) |
 | Bac à sable | « Tester une idée pendant un mois » | Subscription isolée, budget plafonné, expiration | `sandbox` | aucun (archétype seul) |
 
 Une offre absente du catalogue n'est pas inventée par le modèle : la demande part en
@@ -86,12 +86,12 @@ Une offre absente du catalogue n'est pas inventée par le modèle : la demande p
 apiVersion: platform.azpl/v1
 kind: PlatformRequest
 metadata:
-  name: suivi-interventions          # généré, unique
+  name: suivi-achats                 # généré, unique
   requestedBy: <objectId Entra>      # injecté par le portail depuis le jeton, jamais par le modèle
-  team: maintenance-materiel
+  team: achats
 spec:
   need: >                            # reformulation validée par le demandeur
-    Application web interne de suivi des interventions de maintenance.
+    Application web interne de suivi des demandes d'achat.
   offer: internal-web-app            # enum du catalogue
   users: 50
   dataSensitivity: internal          # public | internal | confidential | restricted
@@ -107,12 +107,12 @@ spec:
 **L'entrée `lzctl`** (ce que le résolveur produit, jamais le modèle) :
 
 ```yaml
-- name: suivi-interventions-prd
+- name: suivi-achats-prd
   subscription: <créée par vending>
   archetype: corp
   addressSpace: 10.20.4.0/24         # attribuée par l'IPAM
   connected: true
-  tags: { owner: ..., cost-center: CC-1234, request: suivi-interventions }
+  tags: { owner: ..., cost-center: CC-1234, request: suivi-achats }
   blueprint:
     type: aca-platform
     overrides: { postgres: { sku: B_Standard_B1ms } }
@@ -173,7 +173,7 @@ landing zone de l'équipe, l'autre dans celui du service mutualisé, chacune rel
 propriétaire.
 
 ### Ce que l'équipe infra voit dans la revue
-- La décision et sa raison : « rattachement à `apim-prd-01` (Premium), workspace `horaires` ».
+- La décision et sa raison : « rattachement à `apim-prd-01` (Premium), workspace `catalogue` ».
 - L'écart de coût : rattachement contre ressource dédiée (`cost-api`).
 - La capacité restante du service mutualisé après rattachement.
 - Les ressources non gérées repérées par Resource Graph, s'il y en a.
