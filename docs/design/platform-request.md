@@ -123,14 +123,74 @@ exposition × disponibilité → archétype, blueprint, tailles, contrôles ajou
 (`confidential` → private endpoints obligatoires, `internetExposure` → archétype `online` et
 revue sécurité, etc.).
 
-## 5. Workflow agentique
+## 5. Réutiliser l'existant avant de créer
+
+Sans lecture de l'existant, chaque demande crée ses propres ressources : cinq APIM Consumption
+à côté d'un APIM Premium mutualisé, cinq budgets, cinq jeux de règles, aucune vue d'ensemble.
+Le résolveur consulte donc l'existant avant de choisir entre **rattacher** la demande à un
+service mutualisé et **créer** une ressource dédiée.
+
+### Deux sources, deux rôles
+
+| Source | Contenu | Usage |
+|---|---|---|
+| **Registre des services mutualisés** (dans Git, à côté de `lzctl.yaml`) | Chaque service partagé : type, SKU, propriétaire, environnement, capacité, mode de rattachement (workspace APIM, namespace AKS, base sur un serveur Postgres partagé, projet Foundry…) | **Source de vérité** pour décider. Seul ce qui y figure peut être réutilisé |
+| **Azure Resource Graph** (lecture seule) | Ce qui existe réellement dans le tenant | Vérifier que le registre est juste (dérive) et repérer l'existant non géré, sans jamais le réutiliser automatiquement |
+
+Une ressource trouvée dans Azure mais absente du registre (un APIM créé à la main, par exemple)
+n'est pas réutilisée : elle est **signalée** dans la revue, et sa reprise passe par un import
+(chemin brownfield de `lzctl`), puis par son entrée au registre.
+
+### Règles de décision (déterministes, testées)
+
+Un service mutualisé est retenu si **toutes** les conditions tiennent :
+
+| Condition | Exemple |
+|---|---|
+| Même environnement | Une demande de prod ne se rattache pas à l'APIM de dev |
+| Niveau de sensibilité compatible | `restricted` exige une ressource dédiée ; `internal` peut partager |
+| Exposition compatible | Une API publique ne se rattache qu'à une passerelle qui a une entrée publique |
+| Disponibilité couverte | `24x7` exige un service mutualisé avec un SLA au moins égal |
+| Capacité restante | Unités APIM, nœuds AKS, quota de tokens Foundry, connexions Postgres sous le seuil défini dans le registre |
+| Rattachement prévu | Le service déclare comment accueillir une équipe (workspace APIM, namespace AKS…) |
+
+Sinon, ressource dédiée, avec la raison écrite dans la revue (« prod `restricted` : APIM dédié »).
+
+### Ce que produit un rattachement
+
+Le rattachement est lui aussi du code, relu en PR, mais **dans le périmètre du propriétaire du
+service mutualisé** :
+
+| Offre demandée | Si un service mutualisé convient | Sinon |
+|---|---|---|
+| API partenaires | Workspace et produit dans l'APIM Premium existant (les workspaces APIM permettent de déléguer une partie de l'instance à une équipe ; disponibilité par SKU à vérifier) | APIM dédié (Consumption ou v2 selon le besoin) |
+| Applications conteneurisées | Namespace, quotas, NetworkPolicies et identité sur l'AKS mutualisé | AKS dédié |
+| Application web interne | Environnement Container Apps partagé et base sur le serveur Postgres partagé | Environnement et serveur dédiés |
+| Assistant IA | Projet dans le compte Foundry partagé, quota de tokens par équipe dans la passerelle IA | Compte Foundry dédié |
+
+Conséquence en multi-dépôts : une demande peut ouvrir **deux PR**, l'une dans le dépôt de la
+landing zone de l'équipe, l'autre dans celui du service mutualisé, chacune relue par son
+propriétaire.
+
+### Ce que l'équipe infra voit dans la revue
+- La décision et sa raison : « rattachement à `apim-prd-01` (Premium), workspace `horaires` ».
+- L'écart de coût : rattachement contre ressource dédiée (`cost-api`).
+- La capacité restante du service mutualisé après rattachement.
+- Les ressources non gérées repérées par Resource Graph, s'il y en a.
+
+### Imputation des coûts
+Un service mutualisé brouille la facture. Chaque rattachement porte les tags de la demande
+(centre de coût, équipe), et l'usage est réparti par l'unité propre au service : appels du
+produit APIM, consommation du namespace AKS, tokens par équipe dans la passerelle IA.
+
+## 6. Workflow agentique
 
 | Agent | Déclencheur | Entrées | Sorties | Droits |
 |---|---|---|---|---|
 | **Cadrage** | Conversation sur le portail | Échanges avec le métier, catalogue | Demande structurée (sortie au schéma), résumé validé par le demandeur | Aucun droit Azure ; ne crée rien lui-même |
 | **Dépôt** (service, pas un LLM) | Validation de la demande par le métier | Demande, identité du jeton | Branche et PR `requests/<nom>.yaml` | Application GitHub limitée au dépôt ; ne peut pas approuver |
 | **Validation** (pipeline, pas un LLM) | PR sur `requests/` | Demande | Contrôles de schéma et de règles, entrée `lzctl`, code généré, plan | Identité `plan` en lecture seule |
-| **Revue** | Plan disponible | Demande, plan, coût estimé, règles | Résumé pour l'infra : besoin, offre retenue, risques signalés, coût, écarts | Lecture seule ; commente la PR |
+| **Revue** | Plan disponible | Demande, plan, coût estimé, règles, registre des services mutualisés, Resource Graph | Résumé pour l'infra : besoin, offre retenue, rattachement ou création et sa raison, capacité restante, ressources non gérées repérées, risques, coût | Lecture seule ; commente la PR |
 | **Notification** (Logic App ou crochet de service) | Commentaire de revue publié | Résumé | Message Teams ou mail avec lien vers la PR | Aucun droit sur Git ni Azure |
 | **Exploitation (plus tard)** | Planifié | Dérive, coûts, score d'audit par landing zone | Alerte au propriétaire et à l'infra | Lecture seule |
 
@@ -140,7 +200,7 @@ l'approbation n'est plus celle d'une personne : on perd la traçabilité et la s
 rôles. Choix retenu : la carte Teams porte le résumé et le lien ; l'approbation se fait dans la
 PR, avec l'identité de l'approbateur, puis dans l'environnement protégé pour l'apply.
 
-## 6. Où s'exécute `lzctl`
+## 7. Où s'exécute `lzctl`
 
 Dans la pipeline de validation, jamais dans le portail. Le portail n'a donc ni Terraform, ni
 droit Azure, ni accès au state.
@@ -152,7 +212,7 @@ droit Azure, ni accès au state.
 | Approbation | Revue de PR (CODEOWNERS) + environnement `prd` | Politique de branche (reviewers requis) + approbation d'environnement |
 | Notification | Application GitHub pour Teams, ou Logic App | Service hooks Azure DevOps vers Teams, ou Logic App |
 
-## 7. Audit de l'idée
+## 8. Audit de l'idée
 
 ### Ce qui est solide
 - **Le bon découpage** : le modèle sert à ce qu'il fait bien (comprendre un besoin flou, le
@@ -175,6 +235,10 @@ droit Azure, ni accès au state.
 | Explosion des demandes ou des coûts de tokens | Limite de débit et quota de tokens par équipe (passerelle IA) ; une demande ouverte par équipe et par offre |
 | Approbation par une identité de service | Approbation uniquement dans la PR et l'environnement protégé |
 | Données sensibles dans la conversation | Foundry en zone de données UE ; conversation non conservée au-delà de la demande ; consigne de ne pas saisir de secret |
+| Doublons de services (cinq APIM au lieu d'un) | Registre des services mutualisés consulté avant toute création ; création dédiée justifiée par une règle et écrite dans la revue |
+| Réutilisation d'une ressource non maîtrisée | Seul le registre autorise un rattachement ; Resource Graph ne fait que signaler |
+| Saturation d'un service mutualisé | Seuils de capacité dans le registre ; au-delà, création dédiée ou demande d'augmentation au propriétaire |
+| Voisin bruyant | Quotas par équipe (namespace AKS, produit APIM, tokens) posés au rattachement |
 | Plage IP en conflit | IPAM déterministe sur le plan d'adressage versionné ; contrôle de chevauchement dans la pipeline (déjà dans `lzctl validate`) |
 | Landing zone orpheline | Propriétaire obligatoire ; date d'expiration pour `sandbox` ; agent d'exploitation qui signale l'inactivité |
 
@@ -186,19 +250,22 @@ droit Azure, ni accès au state.
 - Vending de subscriptions par demande : présent dans `infra/landing-zone`, à brancher sur `lzctl`.
 - Application GitHub pour créer les PR depuis le portail.
 
-## 8. Étapes
+## 9. Étapes
 
 | # | Étape | Où | Critère de succès |
 |---|---|---|---|
 | 1 | Réparer `lzctl`, CI qui valide la sortie de chaque profil et blueprint | `lzctl` | `terraform init` et `validate` verts sur toutes les sorties |
 | 2 | Schéma `PlatformRequest`, résolveur et IPAM, `lzctl workload add --from-request` | `lzctl` | Tests : chaque offre × sensibilité donne l'entrée attendue ; injection refusée |
+| 2b | Registre des services mutualisés, règles de rattachement, contrôle de dérive du registre par Resource Graph | `lzctl` | Tests : une demande compatible se rattache au service existant, une demande `restricted` crée une ressource dédiée |
 | 3 | Pipeline « request-validate » sur `requests/` | `azure-platform` | Une demande écrite à la main produit une PR avec code généré et plan résumé |
 | 4 | Mode « demande » dans le portail : agent de cadrage, sortie au schéma, dépôt de la PR | `ai-gateway` | Une conversation produit une PR valide ; une demande hors catalogue n'en produit pas |
 | 5 | Agent de revue et notification Teams | `azure-platform` | Résumé, drapeaux et coût sur la PR ; message Teams avec lien |
 | 6 | Première landing zone métier de bout en bout (offre `internal-web-app`) | Tenant réel | Délai mesuré entre la demande et la plateforme prête |
 | 7 | Variante Azure DevOps multi-dépôts (Builder) | Organisation ADO de démonstration | Même demande, même résultat, dans ADO |
 
-## 9. Questions ouvertes
+## 10. Questions ouvertes
+- Format et emplacement du registre des services mutualisés : extension de `lzctl.yaml`, ou fichier
+  séparé tenu par l'équipe plateforme ?
 - Dépôt des demandes : dans `azure-platform` (simple) ou séparé (droits plus fins) ?
 - Application GitHub ou compte de service pour ouvrir les PR depuis le portail ?
 - Notification : application GitHub pour Teams, ou Logic App (coût, maintenance) ?
