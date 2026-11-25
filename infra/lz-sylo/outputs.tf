@@ -18,6 +18,7 @@ output "network" {
     aca_subnet_id   = azurerm_subnet.aca.id
     pg_subnet_id    = azurerm_subnet.pg.id
     pg_dns_zone_id  = azurerm_private_dns_zone.pg.id
+    pg_location     = var.pg_location
     virtual_network = azurerm_virtual_network.sylo.id
   }
 }
