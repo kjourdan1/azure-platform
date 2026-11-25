@@ -24,6 +24,10 @@ resource "azurerm_subnet" "aca" {
   virtual_network_name = azurerm_virtual_network.sylo.name
   address_prefixes     = [cidrsubnet(var.address_space, 3, 0)]
 
+  # La landing zone refuse un sous-réseau créé sans NSG : il est donc attaché dès la création.
+  network_security_group_id_wo         = azurerm_network_security_group.sylo.id
+  network_security_group_id_wo_version = 1
+
   delegation {
     name = "aca"
     service_delegation {
@@ -39,6 +43,9 @@ resource "azurerm_subnet" "pg" {
   resource_group_name  = azurerm_resource_group.sylo.name
   virtual_network_name = azurerm_virtual_network.sylo.name
   address_prefixes     = [cidrsubnet(var.address_space, 4, 2)]
+
+  network_security_group_id_wo         = azurerm_network_security_group.sylo.id
+  network_security_group_id_wo_version = 1
 
   delegation {
     name = "pg"
@@ -56,16 +63,6 @@ resource "azurerm_network_security_group" "sylo" {
   resource_group_name = azurerm_resource_group.sylo.name
   location            = azurerm_resource_group.sylo.location
   tags                = local.tags
-}
-
-resource "azurerm_subnet_network_security_group_association" "aca" {
-  subnet_id                 = azurerm_subnet.aca.id
-  network_security_group_id = azurerm_network_security_group.sylo.id
-}
-
-resource "azurerm_subnet_network_security_group_association" "pg" {
-  subnet_id                 = azurerm_subnet.pg.id
-  network_security_group_id = azurerm_network_security_group.sylo.id
 }
 
 resource "azurerm_private_dns_zone" "pg" {
@@ -104,8 +101,6 @@ resource "azurerm_key_vault" "sylo" {
   #checkov:skip=CKV_AZURE_189:Accès public conservé : les runners GitHub hébergés n'ont pas d'IP fixe ; l'authentification est Entra uniquement.
   #checkov:skip=CKV2_AZURE_32:Pas de private endpoint au MVP : coût fixe évité (ADR-010).
   #checkov:skip=CKV_AZURE_109:Pare-feu réseau reporté avec le runner self-hosted.
-  #checkov:skip=CKV_AZURE_110:Purge protection désactivée au MVP : un coffre supprimé doit pouvoir être recréé sans délai de 90 jours.
-  #checkov:skip=CKV_AZURE_42:Même raison : la suppression récupérable 7 jours reste active (soft delete).
   name                       = local.names.key_vault
   resource_group_name        = azurerm_resource_group.sylo.name
   location                   = azurerm_resource_group.sylo.location
@@ -113,7 +108,7 @@ resource "azurerm_key_vault" "sylo" {
   sku_name                   = "standard"
   rbac_authorization_enabled = true
   soft_delete_retention_days = 7
-  purge_protection_enabled   = false
+  purge_protection_enabled   = true # exigé par Enforce-GR-KeyVault ; coffre permanent
   tags                       = local.tags
 
   lifecycle {
