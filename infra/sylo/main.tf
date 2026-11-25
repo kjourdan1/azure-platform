@@ -180,6 +180,7 @@ resource "azurerm_container_app_environment" "sylo" {
   name                       = local.names.environment
   resource_group_name        = local.lz.resource_group.name
   location                   = local.lz.resource_group.location
+  logs_destination           = "log-analytics"
   log_analytics_workspace_id = local.lz.log_analytics_workspace_id
   infrastructure_subnet_id   = local.lz.network.aca_subnet_id
 
