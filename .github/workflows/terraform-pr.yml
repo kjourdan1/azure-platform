@@ -131,7 +131,9 @@ jobs:
     # Stacks pas encore migrées vers le tenant Sylo : leur plan reste visible dans la PR
     # mais ne bloque pas le verdict. À retirer de cette liste stack par stack à la migration.
     # infra/platform lit le state distant de la landing zone, pas encore appliquée dans Sylo.
-    continue-on-error: ${{ contains(fromJSON('["infra/ai","infra/aks","infra/lz-aks","infra/lz-web","infra/platform"]'), matrix.root) }}
+    # infra/lz-sylo et infra/sylo lisent subscription_ids.lz_sylo, absent tant que la landing
+    # zone n'a pas été appliquée avec cette PR : à retirer de la liste après leur premier apply.
+    continue-on-error: ${{ contains(fromJSON('["infra/ai","infra/aks","infra/lz-aks","infra/lz-web","infra/platform","infra/lz-sylo","infra/sylo"]'), matrix.root) }}
     permissions:
       contents: read
       id-token: write # demande du JWT GitHub échangé contre un jeton Azure

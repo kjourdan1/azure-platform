@@ -6,10 +6,17 @@ locals {
   # du state est gérée par le bootstrap). Entrées d'origine à remettre au fur et à mesure de
   # la migration, une fois la subscription créée avec le nom indiqué :
   #   platform = { alias_name = "azpl-platform", management_group = "platform" }
-  #   lz_sylo  = { alias_name = "azpl-lz-sylo",  management_group = "online" }
   #   lz_aks   = { alias_name = "azpl-lz-aks",   management_group = "online" } # ingress public : pas corp
   #   lz_web   = { alias_name = "azpl-lz-web",   management_group = "online" }
-  subscriptions = {}
+  subscriptions = {
+    # Subscription de l'application Sylo, créée à la main dans le portail (compte MCA Individual,
+    # pas de création par alias). Budget propre de 75 €/mois (ADR-027).
+    lz_sylo = {
+      alias_name       = "azpl-lz-sylo"
+      management_group = "online"
+      budget_amount    = 75
+    }
+  }
 
   subscription_tags = {
     owner         = "kjourdan1"
@@ -113,7 +120,7 @@ module "vended_subscriptions" {
   budgets = {
     monthly = {
       name              = "budget-azpl-${replace(each.key, "_", "-")}-prd"
-      amount            = var.budget_amount
+      amount            = try(each.value.budget_amount, var.budget_amount)
       time_grain        = "Monthly"
       time_period_start = var.budget_start_date
       time_period_end   = var.budget_end_date
