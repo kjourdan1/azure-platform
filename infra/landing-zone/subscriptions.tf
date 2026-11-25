@@ -28,17 +28,21 @@ locals {
   # Resource providers nécessaires aux couches suivantes (réseau, AKS, ACR, Key Vault,
   # observabilité, IA, sites statiques), enregistrés au moment de la vente : les couches suivantes n'ont pas
   # à porter ce droit.
+  # Microsoft.App, DBforPostgreSQL et Storage : application Sylo (ADR-010, ADR-011).
   resource_providers = {
+    "Microsoft.App"                     = []
     "Microsoft.CognitiveServices"       = []
     "Microsoft.Consumption"             = []
     "Microsoft.ContainerRegistry"       = []
     "Microsoft.ContainerService"        = []
+    "Microsoft.DBforPostgreSQL"         = []
     "Microsoft.Insights"                = []
     "Microsoft.KeyVault"                = []
     "Microsoft.KubernetesConfiguration" = []
     "Microsoft.ManagedIdentity"         = []
     "Microsoft.Network"                 = []
     "Microsoft.OperationalInsights"     = []
+    "Microsoft.Storage"                 = []
     "Microsoft.Web"                     = []
   }
 
