@@ -128,6 +128,10 @@ jobs:
     needs: [changes, static]
     if: github.event.pull_request.head.repo.full_name == github.repository && needs.changes.outputs.roots != '[]'
     runs-on: ubuntu-24.04
+    # Stacks pas encore migrées vers le tenant Sylo : leur plan reste visible dans la PR
+    # mais ne bloque pas le verdict. À retirer de cette liste stack par stack à la migration.
+    # infra/platform lit le state distant de la landing zone, pas encore appliquée dans Sylo.
+    continue-on-error: ${{ contains(fromJSON('["infra/ai","infra/aks","infra/lz-aks","infra/lz-web","infra/platform"]'), matrix.root) }}
     permissions:
       contents: read
       id-token: write # demande du JWT GitHub échangé contre un jeton Azure
