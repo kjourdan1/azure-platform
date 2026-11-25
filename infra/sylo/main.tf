@@ -18,11 +18,13 @@ resource "azurerm_postgresql_flexible_server" "sylo" {
   resource_group_name = local.lz.resource_group.name
   location            = local.lz.resource_group.location
   version             = "16"
-  sku_name            = "B_Standard_B1ms"
-  storage_mb          = 32768
-  # Zone explicite : sans zone, la création a échoué en SkuNotAvailable alors que l'API de
-  # capacités annonce B1ms disponible en zones 1, 2 et 3 pour cette subscription.
-  zone = "1"
+
+  # TEMPORAIRE : repasser à B_Standard_B1ms quand Burstable est débloqué (demande support
+  # « Region access » France Central). B1ms refusé en SkuNotAvailable pour cette subscription.
+  # Coût ≈ 120-140 €/mois contre ≈ 15 € en B1ms. Changement de tier possible en place
+  # (redémarrage court) d'après la doc « Scale compute » ; pas vers Burstable depuis la famille V6.
+  sku_name   = "GP_Standard_D2ds_v5"
+  storage_mb = 32768
 
   backup_retention_days = 7
 
