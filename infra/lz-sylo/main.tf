@@ -56,11 +56,10 @@ resource "azurerm_private_dns_zone" "pg" {
 }
 
 resource "azurerm_private_dns_zone_virtual_network_link" "pg" {
-  name                  = "link-${local.names.vnet}"
-  resource_group_name   = azurerm_resource_group.sylo.name
-  private_dns_zone_name = azurerm_private_dns_zone.pg.name
-  virtual_network_id    = azurerm_virtual_network.sylo.id
-  tags                  = local.tags
+  name                = "link-${local.names.vnet}"
+  private_dns_zone_id = azurerm_private_dns_zone.pg.id
+  virtual_network_id  = azurerm_virtual_network.sylo.id
+  tags                = local.tags
 }
 
 # --- Observabilité : workspace propre à Sylo tant que le Log Analytics central (stack platform)
@@ -74,6 +73,10 @@ resource "azurerm_log_analytics_workspace" "sylo" {
   retention_in_days   = 30
   daily_quota_gb      = 0.5
   tags                = local.tags
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # --- Secrets : Key Vault en RBAC, aucune politique d'accès.
@@ -91,6 +94,10 @@ resource "azurerm_key_vault" "sylo" {
   soft_delete_retention_days = 7
   purge_protection_enabled   = false
   tags                       = local.tags
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # --- Images : ACR Basic propre à la landing zone, sans compte admin.
@@ -109,6 +116,10 @@ resource "azurerm_container_registry" "sylo" {
   sku                 = "Basic"
   admin_enabled       = false
   tags                = local.tags
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # --- Identités managées : une par charge (api, web, n8n).

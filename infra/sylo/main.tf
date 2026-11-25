@@ -39,6 +39,7 @@ resource "azurerm_postgresql_flexible_server" "sylo" {
   tags = local.tags
 
   lifecycle {
+    prevent_destroy = true
     # La zone de disponibilité est choisie par Azure à la création.
     ignore_changes = [zone]
   }
@@ -59,6 +60,10 @@ resource "azurerm_postgresql_flexible_server_database" "sylo" {
   server_id = azurerm_postgresql_flexible_server.sylo.id
   charset   = "UTF8"
   collation = "en_US.utf8"
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "azurerm_postgresql_flexible_server_database" "n8n" {
@@ -66,6 +71,10 @@ resource "azurerm_postgresql_flexible_server_database" "n8n" {
   server_id = azurerm_postgresql_flexible_server.sylo.id
   charset   = "UTF8"
   collation = "en_US.utf8"
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # --- Storage : Blob audio (cycle de vie 30 jours) et Queue agent-events. Clés partagées
@@ -92,6 +101,10 @@ resource "azurerm_storage_account" "sylo" {
   allow_nested_items_to_be_public = false
 
   tags = local.tags
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "azurerm_storage_container" "audio" {
@@ -99,11 +112,19 @@ resource "azurerm_storage_container" "audio" {
   name                  = "audio"
   storage_account_id    = azurerm_storage_account.sylo.id
   container_access_type = "private"
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "azurerm_storage_queue" "agent_events" {
   name               = "agent-events"
   storage_account_id = azurerm_storage_account.sylo.id
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "azurerm_storage_management_policy" "audio" {

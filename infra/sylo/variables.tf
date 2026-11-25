@@ -1,9 +1,3 @@
-variable "location" {
-  description = "Région Azure des ressources."
-  type        = string
-  default     = "francecentral"
-}
-
 variable "environment" {
   description = "Code d'environnement intégré aux noms."
   type        = string
