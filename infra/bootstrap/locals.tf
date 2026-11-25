@@ -12,7 +12,7 @@ locals {
   names = {
     resource_group          = "rg-${local.project}-tfstate-${var.environment}-${local.region_code}-001"
     resource_group_identity = "rg-${local.project}-identity-${var.environment}-${local.region_code}-001"
-    storage_account         = "st${local.project}tfstate${var.environment}${local.region_code}001"
+    storage_account         = "st${local.project}tfstate${var.environment}${local.region_code}002"
   }
 
   tags = {
