@@ -49,6 +49,25 @@ resource "azurerm_subnet" "pg" {
   }
 }
 
+# NSG sans règle personnalisée : les règles par défaut laissent passer le trafic du VNet et
+# la sortie Internet. Il rend le contrôle explicite et prêt à durcir.
+resource "azurerm_network_security_group" "sylo" {
+  name                = "nsg-${local.project}-sylo-${local.suffix}"
+  resource_group_name = azurerm_resource_group.sylo.name
+  location            = azurerm_resource_group.sylo.location
+  tags                = local.tags
+}
+
+resource "azurerm_subnet_network_security_group_association" "aca" {
+  subnet_id                 = azurerm_subnet.aca.id
+  network_security_group_id = azurerm_network_security_group.sylo.id
+}
+
+resource "azurerm_subnet_network_security_group_association" "pg" {
+  subnet_id                 = azurerm_subnet.pg.id
+  network_security_group_id = azurerm_network_security_group.sylo.id
+}
+
 resource "azurerm_private_dns_zone" "pg" {
   name                = "privatelink.postgres.database.azure.com"
   resource_group_name = azurerm_resource_group.sylo.name
@@ -85,6 +104,8 @@ resource "azurerm_key_vault" "sylo" {
   #checkov:skip=CKV_AZURE_189:Accès public conservé : les runners GitHub hébergés n'ont pas d'IP fixe ; l'authentification est Entra uniquement.
   #checkov:skip=CKV2_AZURE_32:Pas de private endpoint au MVP : coût fixe évité (ADR-010).
   #checkov:skip=CKV_AZURE_109:Pare-feu réseau reporté avec le runner self-hosted.
+  #checkov:skip=CKV_AZURE_110:Purge protection désactivée au MVP : un coffre supprimé doit pouvoir être recréé sans délai de 90 jours.
+  #checkov:skip=CKV_AZURE_42:Même raison : la suppression récupérable 7 jours reste active (soft delete).
   name                       = local.names.key_vault
   resource_group_name        = azurerm_resource_group.sylo.name
   location                   = azurerm_resource_group.sylo.location
@@ -110,6 +131,7 @@ resource "azurerm_container_registry" "sylo" {
   #checkov:skip=CKV_AZURE_233:Zone redundancy : SKU Basic.
   #checkov:skip=CKV_AZURE_237:Dedicated data endpoint : SKU Basic.
   #checkov:skip=CKV_AZURE_139:Accès public conservé pour la CI applicative Azure DevOps.
+  #checkov:skip=CKV_AZURE_166:Quarantaine des images : fonctionnalité du SKU Premium.
   name                = local.names.registry
   resource_group_name = azurerm_resource_group.sylo.name
   location            = azurerm_resource_group.sylo.location

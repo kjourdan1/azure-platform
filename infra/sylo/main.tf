@@ -100,6 +100,17 @@ resource "azurerm_storage_account" "sylo" {
   min_tls_version                 = "TLS1_2"
   allow_nested_items_to_be_public = false
 
+  # Suppression récupérable 7 jours : couvre l'effacement accidentel sans versioning (coût évité).
+  blob_properties {
+    delete_retention_policy {
+      days = 7
+    }
+
+    container_delete_retention_policy {
+      days = 7
+    }
+  }
+
   tags = local.tags
 
   lifecycle {
