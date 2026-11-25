@@ -2,24 +2,14 @@ locals {
   # Subscriptions existantes, gérées par leur ID retrouvé par leur nom. Pour en créer
   # une nouvelle : réintroduire temporairement la ressource subscription_alias (commit
   # e61e625), puis la retirer du state par un bloc removed une fois la création faite.
-  subscriptions = {
-    platform = {
-      alias_name = "azpl-platform"
-      # Management group direct : héberge le futur réseau hub et Log Analytics.
-      management_group = "platform"
-    }
-    lz_aks = {
-      alias_name = "azpl-lz-aks"
-      # online et non corp : l'ingress AKS est public, que corp interdit.
-      management_group = "online"
-    }
-    lz_web = {
-      alias_name = "azpl-lz-web"
-      # Reprise brownfield : accueille le portfolio, charge de travail publique sortie de
-      # la subscription du state (docs/runbooks/brownfield-lab.md).
-      management_group = "online"
-    }
-  }
+  # Vide dans le tenant Sylo : aucune subscription vendue n'y existe encore (la subscription
+  # du state est gérée par le bootstrap). Entrées d'origine à remettre au fur et à mesure de
+  # la migration, une fois la subscription créée avec le nom indiqué :
+  #   platform = { alias_name = "azpl-platform", management_group = "platform" }
+  #   lz_sylo  = { alias_name = "azpl-lz-sylo",  management_group = "online" }
+  #   lz_aks   = { alias_name = "azpl-lz-aks",   management_group = "online" } # ingress public : pas corp
+  #   lz_web   = { alias_name = "azpl-lz-web",   management_group = "online" }
+  subscriptions = {}
 
   subscription_tags = {
     owner         = "kjourdan1"

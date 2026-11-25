@@ -130,7 +130,8 @@ jobs:
     runs-on: ubuntu-24.04
     # Stacks pas encore migrées vers le tenant Sylo : leur plan reste visible dans la PR
     # mais ne bloque pas le verdict. À retirer de cette liste stack par stack à la migration.
-    continue-on-error: ${{ contains(fromJSON('["infra/ai","infra/aks","infra/lz-aks","infra/lz-web"]'), matrix.root) }}
+    # infra/platform lit le state distant de la landing zone, pas encore appliquée dans Sylo.
+    continue-on-error: ${{ contains(fromJSON('["infra/ai","infra/aks","infra/lz-aks","infra/lz-web","infra/platform"]'), matrix.root) }}
     permissions:
       contents: read
       id-token: write # demande du JWT GitHub échangé contre un jeton Azure
