@@ -27,7 +27,7 @@ variable "budget_amount" {
 variable "budget_start_date" {
   description = "Début des budgets : premier jour d'un mois, format RFC 3339."
   type        = string
-  default     = "2026-10-01T00:00:00Z"
+  default     = "2026-11-01T00:00:00Z" # Azure refuse une date de début antérieure au mois courant
 }
 
 variable "budget_end_date" {
