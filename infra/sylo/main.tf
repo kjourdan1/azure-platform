@@ -20,6 +20,9 @@ resource "azurerm_postgresql_flexible_server" "sylo" {
   version             = "16"
   sku_name            = "B_Standard_B1ms"
   storage_mb          = 32768
+  # Zone explicite : sans zone, la création a échoué en SkuNotAvailable alors que l'API de
+  # capacités annonce B1ms disponible en zones 1, 2 et 3 pour cette subscription.
+  zone = "1"
 
   backup_retention_days = 7
 
@@ -40,8 +43,6 @@ resource "azurerm_postgresql_flexible_server" "sylo" {
 
   lifecycle {
     prevent_destroy = true
-    # La zone de disponibilité est choisie par Azure à la création.
-    ignore_changes = [zone]
   }
 }
 
