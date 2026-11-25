@@ -16,14 +16,10 @@ resource "azurerm_postgresql_flexible_server" "sylo" {
   #checkov:skip=CKV2_AZURE_57:Accès privé via sous-réseau délégué, pas de private endpoint.
   name                = local.names.postgres
   resource_group_name = local.lz.resource_group.name
-  location            = local.lz.resource_group.location
+  location            = local.lz.network.pg_location # northeurope : B1ms refusé en France Central
   version             = "16"
 
-  # TEMPORAIRE : repasser à B_Standard_B1ms quand Burstable est débloqué (demande support
-  # « Region access » France Central). B1ms refusé en SkuNotAvailable pour cette subscription.
-  # Coût ≈ 120-140 €/mois contre ≈ 15 € en B1ms. Changement de tier possible en place
-  # (redémarrage court) d'après la doc « Scale compute » ; pas vers Burstable depuis la famille V6.
-  sku_name   = "GP_Standard_D2ds_v5"
+  sku_name   = "B_Standard_B1ms"
   storage_mb = 32768
 
   backup_retention_days = 7

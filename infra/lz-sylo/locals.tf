@@ -2,6 +2,8 @@ locals {
   project     = "azpl"
   region_code = "frc"
   suffix      = "${var.environment}-${local.region_code}-001"
+  # PostgreSQL en northeurope (code CAF neu) : voir main.tf.
+  pg_suffix   = "${var.environment}-neu-001"
 
   # Convention : {type}-{projet}-{composant}-{env}-{region}-{id} ; composant = sylo.
   names = {

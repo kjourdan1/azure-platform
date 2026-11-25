@@ -37,14 +37,32 @@ resource "azurerm_subnet" "aca" {
   }
 }
 
-# PostgreSQL Flexible Server en accès privé : sous-réseau délégué dédié.
+# PostgreSQL Flexible Server en northeurope : Burstable B1ms est refusé (SkuNotAvailable) en
+# France Central pour cette subscription et accepté en northeurope (test du 2026-11-25). Un serveur
+# intégré à un VNet doit être dans la région de ce VNet : VNet dédié, appairé au VNet France Central.
+resource "azurerm_virtual_network" "pg" {
+  name                = "vnet-${local.project}-sylo-${local.pg_suffix}"
+  resource_group_name = azurerm_resource_group.sylo.name
+  location            = var.pg_location
+  address_space       = [var.pg_address_space]
+  tags                = local.tags
+}
+
+resource "azurerm_network_security_group" "pg" {
+  name                = "nsg-${local.project}-sylo-${local.pg_suffix}"
+  resource_group_name = azurerm_resource_group.sylo.name
+  location            = var.pg_location
+  tags                = local.tags
+}
+
+# Sous-réseau délégué au serveur PostgreSQL, NSG attaché dès la création (policy de la landing zone).
 resource "azurerm_subnet" "pg" {
   name                 = "snet-pg"
   resource_group_name  = azurerm_resource_group.sylo.name
-  virtual_network_name = azurerm_virtual_network.sylo.name
-  address_prefixes     = [cidrsubnet(var.address_space, 4, 2)]
+  virtual_network_name = azurerm_virtual_network.pg.name
+  address_prefixes     = [cidrsubnet(var.pg_address_space, 4, 0)]
 
-  network_security_group_id_wo         = azurerm_network_security_group.sylo.id
+  network_security_group_id_wo         = azurerm_network_security_group.pg.id
   network_security_group_id_wo_version = 1
 
   delegation {
@@ -76,6 +94,32 @@ resource "azurerm_private_dns_zone_virtual_network_link" "pg" {
   private_dns_zone_id = azurerm_private_dns_zone.pg.id
   virtual_network_id  = azurerm_virtual_network.sylo.id
   tags                = local.tags
+}
+
+# La zone DNS privée est liée aux deux VNet : le serveur s'y enregistre depuis northeurope et les
+# Container Apps la résolvent depuis France Central.
+resource "azurerm_private_dns_zone_virtual_network_link" "pg_neu" {
+  name                = "link-vnet-${local.project}-sylo-${local.pg_suffix}"
+  private_dns_zone_id = azurerm_private_dns_zone.pg.id
+  virtual_network_id  = azurerm_virtual_network.pg.id
+  tags                = local.tags
+}
+
+# Appairage bidirectionnel France Central <-> northeurope (trafic PostgreSQL des Container Apps).
+resource "azurerm_virtual_network_peering" "sylo_to_pg" {
+  name                         = "peer-sylo-frc-to-neu"
+  resource_group_name          = azurerm_resource_group.sylo.name
+  virtual_network_name         = azurerm_virtual_network.sylo.name
+  remote_virtual_network_id    = azurerm_virtual_network.pg.id
+  allow_virtual_network_access = true
+}
+
+resource "azurerm_virtual_network_peering" "pg_to_sylo" {
+  name                         = "peer-sylo-neu-to-frc"
+  resource_group_name          = azurerm_resource_group.sylo.name
+  virtual_network_name         = azurerm_virtual_network.pg.name
+  remote_virtual_network_id    = azurerm_virtual_network.sylo.id
+  allow_virtual_network_access = true
 }
 
 # --- Observabilité : workspace propre à Sylo tant que le Log Analytics central (stack platform)
