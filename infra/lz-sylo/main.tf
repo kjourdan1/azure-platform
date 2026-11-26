@@ -213,6 +213,38 @@ resource "azurerm_role_assignment" "kv_secrets_user" {
   principal_type       = "ServicePrincipal"
 }
 
+# Écriture des secrets par Terraform : l'identité qui applique cette stack (et la stack sylo) peut
+# créer des secrets dans le Key Vault (RBAC). Les charges, elles, ne lisent que leurs secrets.
+resource "azurerm_role_assignment" "kv_secrets_officer_apply" {
+  scope                = azurerm_key_vault.sylo.id
+  role_definition_name = "Key Vault Secrets Officer"
+  principal_id         = data.azurerm_client_config.current.object_id
+}
+
+# Le plan (identité en lecture seule) relit les Container Apps existantes : leur lecture passe par
+# l'action listSecrets, absente du rôle Reader. Rôle dédié, limité à cette action.
+resource "azurerm_role_definition" "container_apps_list_secrets" {
+  name        = "role-${local.project}-sylo-listsecrets-${local.suffix}"
+  scope       = azurerm_resource_group.sylo.id
+  description = "Lister les secrets des Container Apps et jobs de Sylo (plan Terraform en lecture seule)."
+
+  permissions {
+    actions = [
+      "Microsoft.App/containerApps/listSecrets/action",
+      "Microsoft.App/jobs/listSecrets/action",
+    ]
+  }
+
+  assignable_scopes = [azurerm_resource_group.sylo.id]
+}
+
+resource "azurerm_role_assignment" "plan_list_secrets" {
+  scope              = azurerm_resource_group.sylo.id
+  role_definition_id = azurerm_role_definition.container_apps_list_secrets.role_definition_resource_id
+  principal_id       = "c2778101-309c-4b04-97a0-9392d6bd1fac" # identité de plan (secret AZURE_CLIENT_ID du job plan)
+  principal_type     = "ServicePrincipal"
+}
+
 # --- Construction des images : identité dédiée à la CI du dépôt privé sylo (GitHub Actions),
 # fédérée en OIDC (aucun secret), avec le seul droit de pousser dans l'ACR. Elle ne déploie rien :
 # la révision déployée est fixée par Terraform (infra/sylo).
