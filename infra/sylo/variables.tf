@@ -46,7 +46,7 @@ variable "entra_web_client_id" {
 variable "n8n_image_tag" {
   description = "Tag de l'image docker.n8n.io/n8nio/n8n (vide : image de démarrage, n8n non déployé)."
   type        = string
-  default     = ""
+  default     = "2.49.7"
 }
 
 variable "entra_n8n_client_id" {
