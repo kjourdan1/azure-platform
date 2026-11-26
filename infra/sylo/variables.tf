@@ -15,13 +15,13 @@ variable "placeholder_image" {
 variable "api_image_tag" {
   description = "Tag de l'image sylo-api dans l'ACR (vide : image de démarrage)."
   type        = string
-  default     = ""
+  default     = "34aac478ae8d"
 }
 
 variable "web_image_tag" {
   description = "Tag de l'image sylo-cockpit dans l'ACR (vide : image de démarrage)."
   type        = string
-  default     = ""
+  default     = "34aac478ae8d"
 }
 
 # Identifiants non secrets des applications Entra créées à la main (portail).
