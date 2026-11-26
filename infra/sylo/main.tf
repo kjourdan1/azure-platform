@@ -41,6 +41,8 @@ resource "azurerm_postgresql_flexible_server" "sylo" {
 
   lifecycle {
     prevent_destroy = true
+    # Zone de disponibilité choisie par Azure à la création (zone 1) : ne pas la remettre à vide.
+    ignore_changes = [zone]
   }
 }
 
