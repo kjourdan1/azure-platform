@@ -62,9 +62,9 @@ locals {
       port   = var.web_image_tag != "" ? 3000 : 80
     }
     n8n = {
-      tagged = false
-      image  = var.placeholder_image
-      port   = 80
+      tagged = var.n8n_image_tag != ""
+      image  = var.n8n_image_tag != "" ? "docker.n8n.io/n8nio/n8n:${var.n8n_image_tag}" : var.placeholder_image
+      port   = var.n8n_image_tag != "" ? 5678 : 80
     }
   }
 
@@ -87,6 +87,33 @@ locals {
       SYLO_API_RESOURCE = var.entra_api_audience
       AZURE_CLIENT_ID   = local.lz.workload_identities.web.client_id
     }
-    n8n = {}
+    n8n = {
+      DB_TYPE                               = "postgresdb"
+      DB_POSTGRESDB_HOST                    = azurerm_postgresql_flexible_server.sylo.fqdn
+      DB_POSTGRESDB_PORT                    = "5432"
+      DB_POSTGRESDB_DATABASE                = "n8n"
+      DB_POSTGRESDB_USER                    = "n8n"
+      DB_POSTGRESDB_SSL_ENABLED             = "true"
+      DB_POSTGRESDB_SSL_REJECT_UNAUTHORIZED = "false"
+      N8N_PROTOCOL                          = "https"
+      N8N_PORT                              = "5678"
+      N8N_PROXY_HOPS                        = "1"
+      WEBHOOK_URL                           = "https://ca-sylo-n8n.${azurerm_container_app_environment.sylo.default_domain}/"
+      GENERIC_TIMEZONE                      = "Europe/Paris"
+      TZ                                    = "Europe/Paris"
+      N8N_DIAGNOSTICS_ENABLED               = "false"
+      N8N_VERSION_NOTIFICATIONS_ENABLED     = "false"
+      N8N_PERSONALIZATION_ENABLED           = "false"
+      SYLO_API_URL                          = "http://ca-sylo-api"
+    }
+  }
+
+  # Secrets n8n lus dans le Key Vault par l'identité de n8n (rôle Key Vault Secrets User, lz-sylo).
+  # Clé = nom de la variable d'environnement ; valeur = nom du secret dans le Key Vault.
+  n8n_secrets = {
+    DB_POSTGRESDB_PASSWORD = "n8n-db-password"
+    N8N_ENCRYPTION_KEY     = "n8n-encryption-key"
+    QONTO_API_LOGIN        = "qonto-api-login"
+    QONTO_API_SECRET       = "qonto-api-secret"
   }
 }

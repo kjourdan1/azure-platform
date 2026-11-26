@@ -18,6 +18,11 @@ vie de 30 jours, queue `agent-events`).
 - **API et jobs** : authentification Entra uniquement, l'identité de l'API est administrateur
   Entra du serveur.
 
+- **n8n déployé par tag** : `n8n_image_tag` vide = image de démarrage, rien ne change. Renseigné
+  (image `docker.n8n.io/n8nio/n8n`), n8n lit ses secrets dans le Key Vault (`n8n-db-password`,
+  `n8n-encryption-key`, `qonto-api-login`, `qonto-api-secret`) et se connecte à sa base. L'interface
+  reste interne tant que `entra_n8n_client_id` (application Entra `sylo-n8n-web`) est vide.
+
 ## Limites connues
 - Domaines personnalisés (`app.sylo.sh`, `api.sylo.sh`) et pare-feu du storage (IP du VPS,
   ADR-025) : à ajouter dans une étape suivante.
