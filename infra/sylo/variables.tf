@@ -42,3 +42,15 @@ variable "entra_web_client_id" {
   type        = string
   default     = "54cee335-ec73-4817-957a-c25ab1b1d6b3"
 }
+# n8n (ADR-027) : image publique épinglée, pas construite par la CI. Vide : image de démarrage.
+variable "n8n_image_tag" {
+  description = "Tag de l'image docker.n8n.io/n8nio/n8n (vide : image de démarrage, n8n non déployé)."
+  type        = string
+  default     = ""
+}
+
+variable "entra_n8n_client_id" {
+  description = "Client ID de l'application Entra sylo-n8n-web (authentification intégrée de l'interface n8n). Vide : l'interface n8n reste interne à l'environnement (pas d'ingress externe)."
+  type        = string
+  default     = ""
+}

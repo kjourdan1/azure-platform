@@ -214,8 +214,20 @@ resource "azurerm_container_app" "app" {
     identity = local.lz.workload_identities[each.key].id
   }
 
+  # Secrets Key Vault (n8n uniquement) : référence versionless, résolue par l'identité de l'application.
+  dynamic "secret" {
+    for_each = each.key == "n8n" && local.images.n8n.tagged ? local.n8n_secrets : {}
+    content {
+      name                = lower(replace(secret.key, "_", "-"))
+      key_vault_secret_id = "${local.lz.key_vault.vault_uri}secrets/${secret.value}"
+      identity            = local.lz.workload_identities[each.key].id
+    }
+  }
+
   ingress {
-    external_enabled = true
+    # L'interface n8n n'est exposée qu'une fois l'authentification Entra en place (entra_n8n_client_id) :
+    # sinon le premier visiteur pourrait créer le compte propriétaire de n8n.
+    external_enabled = each.key == "n8n" ? var.entra_n8n_client_id != "" : true
     target_port      = local.images[each.key].port
     transport        = "auto"
 
@@ -241,6 +253,14 @@ resource "azurerm_container_app" "app" {
         content {
           name  = env.key
           value = env.value
+        }
+      }
+
+      dynamic "env" {
+        for_each = each.key == "n8n" && local.images.n8n.tagged ? local.n8n_secrets : {}
+        content {
+          name        = env.key
+          secret_name = lower(replace(env.key, "_", "-"))
         }
       }
     }
@@ -281,6 +301,42 @@ resource "azapi_resource" "web_auth" {
     }
   }
 }
+
+# --- Même principe pour l'interface n8n (application Entra sylo-n8n-web, affectation obligatoire).
+# Aucun chemin exclu pour l'instant : les workflows prévus (captation mail, Qonto) sont planifiés,
+# aucun webhook entrant. Les chemins /webhook* seront exclus quand un workflow en aura besoin.
+resource "azapi_resource" "n8n_auth" {
+  count = var.entra_n8n_client_id == "" ? 0 : 1
+
+  type      = "Microsoft.App/containerApps/authConfigs@2024-03-01"
+  name      = "current"
+  parent_id = azurerm_container_app.app["n8n"].id
+
+  body = {
+    properties = {
+      platform = {
+        enabled = true
+      }
+      globalValidation = {
+        unauthenticatedClientAction = "RedirectToLoginPage"
+        redirectToProvider          = "azureactivedirectory"
+      }
+      identityProviders = {
+        azureActiveDirectory = {
+          enabled = true
+          registration = {
+            clientId     = var.entra_n8n_client_id
+            openIdIssuer = "https://login.microsoftonline.com/${data.azurerm_client_config.current.tenant_id}/v2.0"
+          }
+          validation = {
+            allowedAudiences = [var.entra_n8n_client_id, "api://${var.entra_n8n_client_id}"]
+          }
+        }
+      }
+    }
+  }
+}
+
 # --- Migrations Alembic : job Container Apps à déclenchement manuel, même image et mêmes
 # variables que l'API (Settings valide la configuration prd), identité de l'API (admin Entra de
 # PostgreSQL). Terraform le lance après chaque changement d'image de l'API, une fois l'API déployée.
