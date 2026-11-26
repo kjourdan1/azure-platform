@@ -19,6 +19,10 @@ resource "azurerm_key_vault_secret" "n8n_db_password" {
   value        = random_password.n8n_db.result
   key_vault_id = local.lz.key_vault.id
   content_type = "text/plain"
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "azurerm_key_vault_secret" "n8n_encryption_key" {
