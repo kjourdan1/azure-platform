@@ -281,3 +281,71 @@ resource "azapi_resource" "web_auth" {
     }
   }
 }
+# --- Migrations Alembic : job Container Apps à déclenchement manuel, même image et mêmes
+# variables que l'API (Settings valide la configuration prd), identité de l'API (admin Entra de
+# PostgreSQL). Terraform le lance après chaque changement d'image de l'API, une fois l'API déployée.
+resource "azurerm_container_app_job" "migrate" {
+  count = local.images.api.tagged ? 1 : 0
+
+  name                         = "caj-sylo-migrate"
+  location                     = local.lz.resource_group.location
+  resource_group_name          = local.lz.resource_group.name
+  container_app_environment_id = azurerm_container_app_environment.sylo.id
+  workload_profile_name        = "Consumption"
+  replica_timeout_in_seconds   = 600
+  replica_retry_limit          = 1
+  tags                         = local.tags
+
+  manual_trigger_config {
+    parallelism              = 1
+    replica_completion_count = 1
+  }
+
+  identity {
+    type         = "UserAssigned"
+    identity_ids = [local.lz.workload_identities.api.id]
+  }
+
+  registry {
+    server   = local.lz.container_registry.login_server
+    identity = local.lz.workload_identities.api.id
+  }
+
+  template {
+    container {
+      name    = "migrate"
+      image   = local.images.api.image
+      cpu     = 0.5
+      memory  = "1Gi"
+      command = ["alembic", "upgrade", "head"]
+
+      dynamic "env" {
+        for_each = local.app_env.api
+        content {
+          name  = env.key
+          value = env.value
+        }
+      }
+    }
+  }
+}
+
+# Relance des migrations à chaque nouveau tag d'image de l'API.
+resource "terraform_data" "migrate_trigger" {
+  input = var.api_image_tag
+}
+
+resource "azapi_resource_action" "migrate_start" {
+  count = local.images.api.tagged ? 1 : 0
+
+  type        = "Microsoft.App/jobs@2024-03-01"
+  resource_id = azurerm_container_app_job.migrate[0].id
+  action      = "start"
+  method      = "POST"
+
+  depends_on = [azurerm_container_app.app]
+
+  lifecycle {
+    replace_triggered_by = [terraform_data.migrate_trigger]
+  }
+}
