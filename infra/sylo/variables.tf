@@ -52,5 +52,5 @@ variable "n8n_image_tag" {
 variable "entra_n8n_client_id" {
   description = "Client ID de l'application Entra sylo-n8n-web (authentification intégrée de l'interface n8n). Vide : l'interface n8n reste interne à l'environnement (pas d'ingress externe)."
   type        = string
-  default     = ""
+  default     = "f48be47c-5caf-4c1c-9abd-dac41cd88960"
 }
