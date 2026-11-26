@@ -55,3 +55,11 @@ output "workload_identities" {
     }
   }
 }
+
+output "build_identity" {
+  description = "Identité de la CI du dépôt sylo (secret AZURE_CLIENT_ID du workflow de build)."
+  value = {
+    client_id    = azurerm_user_assigned_identity.build.client_id
+    principal_id = azurerm_user_assigned_identity.build.principal_id
+  }
+}

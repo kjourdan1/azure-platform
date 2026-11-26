@@ -46,4 +46,47 @@ locals {
       memory       = "1Gi"
     }
   }
+
+  # Image et port d'écoute de chaque application : l'image de démarrage écoute sur 80.
+  acr = local.lz.container_registry.login_server
+
+  images = {
+    api = {
+      tagged = var.api_image_tag != ""
+      image  = var.api_image_tag != "" ? "${local.acr}/sylo-api:${var.api_image_tag}" : var.placeholder_image
+      port   = var.api_image_tag != "" ? 8000 : 80
+    }
+    web = {
+      tagged = var.web_image_tag != ""
+      image  = var.web_image_tag != "" ? "${local.acr}/sylo-cockpit:${var.web_image_tag}" : var.placeholder_image
+      port   = var.web_image_tag != "" ? 3000 : 80
+    }
+    n8n = {
+      tagged = false
+      image  = var.placeholder_image
+      port   = 80
+    }
+  }
+
+  # Variables d'environnement de production (aucun secret : identités managées partout).
+  app_env = {
+    api = {
+      ENVIRONMENT         = "prd"
+      AUTH_MODE           = "entra"
+      ENTRA_TENANT_ID     = data.azurerm_client_config.current.tenant_id
+      ENTRA_API_CLIENT_ID = var.entra_api_client_id
+      ENTRA_API_AUDIENCE  = var.entra_api_audience
+      DB_AUTH_MODE        = "entra"
+      # Utilisateur PostgreSQL = nom de l'identité de l'API, administrateur Entra du serveur.
+      DATABASE_URL    = "postgresql+psycopg://id-${local.project}-sylo-api-${local.suffix}@${azurerm_postgresql_flexible_server.sylo.fqdn}:5432/sylo?sslmode=require"
+      AZURE_CLIENT_ID = local.lz.workload_identities.api.client_id
+    }
+    web = {
+      COCKPIT_STOCKAGE  = "sylo"
+      SYLO_API_URL      = "https://ca-sylo-api.${azurerm_container_app_environment.sylo.default_domain}"
+      SYLO_API_RESOURCE = var.entra_api_audience
+      AZURE_CLIENT_ID   = local.lz.workload_identities.web.client_id
+    }
+    n8n = {}
+  }
 }
