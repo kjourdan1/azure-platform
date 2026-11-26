@@ -28,17 +28,17 @@ variable "web_image_tag" {
 variable "entra_api_client_id" {
   description = "Client ID de l'application Entra sylo-api (ENTRA_API_CLIENT_ID de l'API)."
   type        = string
-  default     = ""
+  default     = "87a494c0-f9bc-4801-86d0-048805513bb0"
 }
 
 variable "entra_api_audience" {
   description = "URI d'application de sylo-api : audience des jetons et ressource demandée par le cockpit."
   type        = string
-  default     = "api://sylo-api"
+  default     = "api://87a494c0-f9bc-4801-86d0-048805513bb0" # api://sylo-api refusé par Entra
 }
 
 variable "entra_web_client_id" {
   description = "Client ID de l'application Entra sylo-web (authentification intégrée du cockpit). Vide : pas d'authentification intégrée."
   type        = string
-  default     = ""
+  default     = "54cee335-ec73-4817-957a-c25ab1b1d6b3"
 }
