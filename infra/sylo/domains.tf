@@ -35,11 +35,10 @@ locals {
 resource "azurerm_container_app_environment_managed_certificate" "domain" {
   for_each = var.enable_custom_domains ? local.custom_domains : {}
 
-  name                           = "mc-${each.key}"
-  container_app_environment_id   = azurerm_container_app_environment.sylo.id
-  subject_name                   = each.value
-  domain_control_validation_type = "CNAME"
-  tags                           = local.tags
+  name                         = "mc-${each.key}"
+  container_app_environment_id = azurerm_container_app_environment.sylo.id
+  subject_name                 = each.value
+  tags                         = local.tags
 }
 
 resource "azurerm_container_app_custom_domain" "domain" {
