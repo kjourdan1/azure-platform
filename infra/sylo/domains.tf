@@ -3,7 +3,8 @@
 # enregistrements sont à créer à la main, en deux temps.
 #   1. enable_custom_domains = false : appliquer, lire la sortie custom_domain_dns_records,
 #      créer les enregistrements chez le registrar.
-#   2. enable_custom_domains = true : appliquer, Azure valide les CNAME et émet les certificats.
+#   2. enable_custom_domains = true : appliquer, Azure vérifie le DNS, lie les domaines et émet
+#      les certificats (validation CNAME).
 # Après la bascule, ajouter https://<app_hostname>/.auth/login/aad/callback aux URI de
 # redirection de l'application Entra sylo-web.
 
@@ -20,7 +21,7 @@ variable "api_hostname" {
 }
 
 variable "enable_custom_domains" {
-  description = "Crée les certificats gérés et lie les domaines. À activer une fois les enregistrements DNS en place."
+  description = "Lie les domaines et crée les certificats gérés. À activer une fois les enregistrements DNS en place."
   type        = bool
   default     = false
 }
@@ -32,22 +33,28 @@ locals {
   }
 }
 
+resource "azurerm_container_app_custom_domain" "domain" {
+  for_each = var.enable_custom_domains ? local.custom_domains : {}
+
+  name             = each.value
+  container_app_id = azurerm_container_app.app[each.key].id
+
+  lifecycle {
+    # Le certificat géré est lié par Azure, de façon asynchrone : ne pas recréer le domaine.
+    ignore_changes = [certificate_binding_type, container_app_environment_certificate_id]
+  }
+}
+
 resource "azurerm_container_app_environment_managed_certificate" "domain" {
   for_each = var.enable_custom_domains ? local.custom_domains : {}
 
   name                         = "mc-${each.key}"
   container_app_environment_id = azurerm_container_app_environment.sylo.id
   subject_name                 = each.value
+  domain_control_validation    = "CNAME"
   tags                         = local.tags
-}
 
-resource "azurerm_container_app_custom_domain" "domain" {
-  for_each = var.enable_custom_domains ? local.custom_domains : {}
-
-  name                                             = each.value
-  container_app_id                                 = azurerm_container_app.app[each.key].id
-  container_app_environment_managed_certificate_id = azurerm_container_app_environment_managed_certificate.domain[each.key].id
-  certificate_binding_type                         = "SniEnabled"
+  depends_on = [azurerm_container_app_custom_domain.domain]
 }
 
 output "custom_domain_dns_records" {
