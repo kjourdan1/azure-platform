@@ -27,3 +27,9 @@ variable "pg_address_space" {
   type        = string
   default     = "10.51.0.0/24"
 }
+
+variable "app_repository" {
+  description = "Dépôt GitHub du code applicatif dont la branche main peut pousser des images dans l'ACR."
+  type        = string
+  default     = "kjourdan1/sylo"
+}

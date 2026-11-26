@@ -212,3 +212,28 @@ resource "azurerm_role_assignment" "kv_secrets_user" {
   principal_id         = azurerm_user_assigned_identity.workload[each.key].principal_id
   principal_type       = "ServicePrincipal"
 }
+
+# --- Construction des images : identité dédiée à la CI du dépôt privé sylo (GitHub Actions),
+# fédérée en OIDC (aucun secret), avec le seul droit de pousser dans l'ACR. Elle ne déploie rien :
+# la révision déployée est fixée par Terraform (infra/sylo).
+resource "azurerm_user_assigned_identity" "build" {
+  name                = "id-${local.project}-sylo-build-${local.suffix}"
+  resource_group_name = azurerm_resource_group.sylo.name
+  location            = azurerm_resource_group.sylo.location
+  tags                = local.tags
+}
+
+resource "azurerm_federated_identity_credential" "build" {
+  name                      = "github-sylo-main"
+  user_assigned_identity_id = azurerm_user_assigned_identity.build.id
+  issuer                    = "https://token.actions.githubusercontent.com"
+  audience                  = ["api://AzureADTokenExchange"]
+  subject                   = "repo:${var.app_repository}:ref:refs/heads/main"
+}
+
+resource "azurerm_role_assignment" "build_acr_push" {
+  scope                = azurerm_container_registry.sylo.id
+  role_definition_name = "AcrPush"
+  principal_id         = azurerm_user_assigned_identity.build.principal_id
+  principal_type       = "ServicePrincipal"
+}

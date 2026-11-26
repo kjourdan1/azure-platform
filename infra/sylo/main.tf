@@ -173,7 +173,8 @@ resource "azurerm_role_assignment" "api_queue" {
 }
 
 # --- Container Apps : environnement Consumption intégré au VNet, trois applications.
-# Les images sont publiées par la CI applicative ; Terraform ignore l'image et le port (ADR-011).
+# Les images sont construites et poussées dans l'ACR par la CI du dépôt sylo ; la révision
+# déployée est fixée ici par son tag (variables *_image_tag) : un déploiement = une PR.
 
 resource "azurerm_container_app_environment" "sylo" {
   name                       = local.names.environment
@@ -213,7 +214,7 @@ resource "azurerm_container_app" "app" {
 
   ingress {
     external_enabled = true
-    target_port      = 80
+    target_port      = local.images[each.key].port
     transport        = "auto"
 
     traffic_weight {
@@ -228,17 +229,53 @@ resource "azurerm_container_app" "app" {
 
     container {
       name   = each.key
-      image  = var.placeholder_image
+      image  = local.images[each.key].image
       cpu    = each.value.cpu
       memory = each.value.memory
+
+      dynamic "env" {
+        # Aucune variable tant que l'image de démarrage tourne.
+        for_each = { for k, v in local.app_env[each.key] : k => v if local.images[each.key].tagged }
+        content {
+          name  = env.key
+          value = env.value
+        }
+      }
     }
   }
+}
 
-  lifecycle {
-    # La CI applicative publie les révisions et règle le port d'écoute réel.
-    ignore_changes = [
-      template[0].container[0].image,
-      ingress[0].target_port,
-    ]
+# --- Authentification intégrée Container Apps sur le cockpit : le cockpit n'a pas de connexion
+# utilisateur propre, la plateforme impose une connexion Entra (app sylo-web, affectation
+# obligatoire côté Entra) avant toute requête. Activée dès que l'ID de l'app est renseigné.
+resource "azapi_resource" "web_auth" {
+  count = var.entra_web_client_id == "" ? 0 : 1
+
+  type      = "Microsoft.App/containerApps/authConfigs@2024-03-01"
+  name      = "current"
+  parent_id = azurerm_container_app.app["web"].id
+
+  body = {
+    properties = {
+      platform = {
+        enabled = true
+      }
+      globalValidation = {
+        unauthenticatedClientAction = "RedirectToLoginPage"
+        redirectToProvider          = "azureactivedirectory"
+      }
+      identityProviders = {
+        azureActiveDirectory = {
+          enabled = true
+          registration = {
+            clientId     = var.entra_web_client_id
+            openIdIssuer = "https://login.microsoftonline.com/${data.azurerm_client_config.current.tenant_id}/v2.0"
+          }
+          validation = {
+            allowedAudiences = [var.entra_web_client_id, "api://${var.entra_web_client_id}"]
+          }
+        }
+      }
+    }
   }
 }
