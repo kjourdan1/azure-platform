@@ -45,10 +45,10 @@ resource "azurerm_container_app_environment_managed_certificate" "domain" {
 resource "azurerm_container_app_custom_domain" "domain" {
   for_each = var.enable_custom_domains ? local.custom_domains : {}
 
-  name                                     = each.value
-  container_app_id                         = azurerm_container_app.app[each.key].id
+  name                                             = each.value
+  container_app_id                                 = azurerm_container_app.app[each.key].id
   container_app_environment_managed_certificate_id = azurerm_container_app_environment_managed_certificate.domain[each.key].id
-  certificate_binding_type                 = "SniEnabled"
+  certificate_binding_type                         = "SniEnabled"
 }
 
 output "custom_domain_dns_records" {
